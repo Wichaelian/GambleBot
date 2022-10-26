@@ -97,11 +97,12 @@ class GameEngine:
         target = self.dealer
         if self.play_status[target] == True:
                 self.player_cards[target], self.seen = deal_x_cards(2, self.seen)
-        target = (target + 1) % players
+        target = (target + 1) % self.player_ct
         while target != self.dealer:
             if self.play_status[target] == True:
                 self.player_cards[target], self.seen = deal_x_cards(2, self.seen)
-            target = (target + 1) % players
+            target = (target + 1) % self.player_ct
+
     
 first_game = GameEngine(25, 4, 0.25, 0.5)
 first_game.deal_hands()
