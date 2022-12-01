@@ -42,6 +42,7 @@ def classify(hand):
             res = max(res, 8)
     return res
 
+
 def deal_x_cards(x, seen):
     deck = set()
     res = []
@@ -62,6 +63,10 @@ def profile_bet(position, options, curr_bet, pot):
 
 class GameEngine:
     
+    """
+    Initialize 
+    """
+
     def __init__(self, init_stack, player_ct, sm, big):
         self.player_ct = player_ct
         self.hand_ct = player_ct
