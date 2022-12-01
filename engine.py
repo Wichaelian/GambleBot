@@ -64,7 +64,9 @@ def profile_bet(position, options, curr_bet, pot):
 class GameEngine:
     
     """
-    Initialize 
+    Initialize a game with a set initial stack amount per player, 
+    number of players, and small/big blind values.
+
     """
 
     def __init__(self, init_stack, player_ct, sm, big):
