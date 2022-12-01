@@ -2,8 +2,19 @@ import numpy as np
 import pandas as pd
 import random
 import matplotlib.pyplot as plt
+import typing as T
 
-def classify(hand):
+
+def classify(hand: T.List[T.List]) -> int:
+    """
+    Classifies a given hand using rules described at https://archive.ics.uci.edu/ml/datasets/Poker+Hand.
+
+    Parameter:
+    hand - Poker hand to classify. 
+
+    Return:
+    The integer code for the hand classification. 
+    """
     suit = {}
     rank = {}
     r = 0
@@ -25,7 +36,8 @@ def classify(hand):
         res = max(res, 5)
     r = max(rank.values())
     second = sorted(rank.values())[-2]
-    rank_ct_map = {(4, 1): 7, (3, 2): 6, (3, 1): 3, (2, 2): 2, (2, 1): 1, (1, 1): 0}
+    rank_ct_map = {(4, 1): 7, (3, 2): 6, (3, 1): 3,
+                   (2, 2): 2, (2, 1): 1, (1, 1): 0}
     res = max(res, rank_ct_map[(r, second)])
     rank_list = sorted(rank.keys())
     if rank_list[0] == 1 and rank_list[-1] == 13:
@@ -42,7 +54,15 @@ def classify(hand):
             res = max(res, 8)
     return res
 
-def deal_x_cards(x, seen):
+
+def deal_x_cards(x: int, seen: T.Set):
+    """
+    Deal x cards to the game, making sure not to deal cards already seen.
+
+    Parameters:
+    x - number of cards to deal
+    seen - 
+    """
     deck = set()
     res = []
     for suit in range(1, 5):
@@ -57,29 +77,33 @@ def deal_x_cards(x, seen):
 def pf_bet(position, options, curr_bet, pot):
     return ['Bet', 1.5]
 
+
 def profile_bet(position, options, curr_bet, pot):
     return ['Bet', 1.5]
 
+
 class GameEngine:
-    
+
     def __init__(self, init_stack, player_ct, sm, big):
         self.player_ct = player_ct
         self.hand_ct = player_ct
         self.play_status = [True for i in range(player_ct)]
         self.bot_status = self.play_status[0]
-        
+
         self.dealer = random.randrange(player_ct)
         self.sm_blind = sm
         self.big_blind = big
         self.curr_bet = big
         self.pot = sm + big
-        
+
         self.player_stacks = [init_stack for i in range(player_ct)]
         self.bot_stack = self.player_stacks[0]
-        
-        self.player_stacks[self.dealer + 1] = max(0, self.player_stacks[self.dealer] - sm)
-        self.player_stacks[(self.dealer + 2) % player_ct] = max(0, self.player_stacks[(self.dealer + 2) % player_ct] - big)
-        
+
+        self.player_stacks[self.dealer +
+                           1] = max(0, self.player_stacks[self.dealer] - sm)
+        self.player_stacks[(self.dealer + 2) % player_ct] = max(0,
+                                                                self.player_stacks[(self.dealer + 2) % player_ct] - big)
+
         self.player_cards = [(None, None) for i in range(player_ct)]
         self.bot_card = self.player_cards[0]
         self.com_cards = []
@@ -87,25 +111,25 @@ class GameEngine:
 
         self.pf_range = {
             1: {'1_1o', '13_1s', '12_1s', '11_1s', '10_1s', '9_1s', '8_1s', '7_1s', '6_1s', '5_1s', '4_1s', '3_1s', '2_1s',
-                   '13_1o', '12_1o', '11_1o', '10_1o',
-                   '13_13o', '13_12s', '13_11s', '13_10s', '13_12o',
-                   '12_12o', '12_11s', '12_10s',
-                   '11_11o', '11_10s',
-                   '10_10o', '10_9s',
-                   '9_9o'},
+                '13_1o', '12_1o', '11_1o', '10_1o',
+                '13_13o', '13_12s', '13_11s', '13_10s', '13_12o',
+                '12_12o', '12_11s', '12_10s',
+                '11_11o', '11_10s',
+                '10_10o', '10_9s',
+                '9_9o'},
             2: {'13_9s', '13_8s', '13_11o', '12_9s', '12_11o', '11_9s', '9_8s', '8_7s', '7_6s', '5_4s'},
-            3: {'13_7s', '13_6s', '13_5s', '13_10o', '12_8s', '12_10o', '11_8s', '11_10o', 
-                   '10_8s', '9_7s', '8_6s', '7_5s', '3_3o', '2_2o'},
+            3: {'13_7s', '13_6s', '13_5s', '13_10o', '12_8s', '12_10o', '11_8s', '11_10o',
+                '10_8s', '9_7s', '8_6s', '7_5s', '3_3o', '2_2o'},
             4: {'13_4s', '13_3s', '13_2s', '12_7s', '12_6s', '12_5s', '11_7s', '10_7s', '10_6s',
-                   '9_1o', '8_1o', '7_1o', '6_1o', '5_1o', '4_1o',
-                   '13_9o', '12_9o', '11_9o', '10_9o', '9_6s', '9_8o', '8_5s', '6_4s', '5_3s', '4_3s'},
+                '9_1o', '8_1o', '7_1o', '6_1o', '5_1o', '4_1o',
+                '13_9o', '12_9o', '11_9o', '10_9o', '9_6s', '9_8o', '8_5s', '6_4s', '5_3s', '4_3s'},
             5: {'3_1o', '2_1o', '12_4s', '12_3s', '12_2s', '13_8o', '13_7o', '13_6o', '13_5o', '13_4o',
-                   '11_6s', '11_5s', '11_4s', '11_3s', '11_2o', '11_2s', '12_8o', '12_7o', '12_6o', '12_5o',
-                   '10_5s', '10_4s', '10_3s', '10_2s', '9_5s', '9_4s', '11_8o', '11_7o', '10_8o', '10_7o', '9_7o',
-                   '8_4s', '8_7o', '8_6o', '7_4s', '7_3s', '7_6o', '7_5o', '6_3s', '6_5o', '6_4o',
-                   '5_2s', '5_4o', '4_2s', '3_2s'}
-                        }
-        
+                '11_6s', '11_5s', '11_4s', '11_3s', '11_2o', '11_2s', '12_8o', '12_7o', '12_6o', '12_5o',
+                '10_5s', '10_4s', '10_3s', '10_2s', '9_5s', '9_4s', '11_8o', '11_7o', '10_8o', '10_7o', '9_7o',
+                '8_4s', '8_7o', '8_6o', '7_4s', '7_3s', '7_6o', '7_5o', '6_3s', '6_5o', '6_4o',
+                '5_2s', '5_4o', '4_2s', '3_2s'}
+        }
+
     def bet(self, player, amt):
         assert amt >= 2*self.curr_bet
         assert self.player_stacks[player] >= amt
@@ -115,21 +139,22 @@ class GameEngine:
 
     def call(self, player):
         self.bet(player, amt=self.curr_bet)
-    
+
     def fold(self, player):
         self.play_status[player] = False
         self.hand_ct -= 1
-    
+
     def deal_hands(self):
         players = self.player_ct
         self.com_cards, self.seen = deal_x_cards(3, self.seen)
         target = self.dealer
         if self.play_status[target] == True:
-                self.player_cards[target], self.seen = deal_x_cards(2, self.seen)
+            self.player_cards[target], self.seen = deal_x_cards(2, self.seen)
         target = (target + 1) % self.player_ct
         while target != self.dealer:
             if self.play_status[target] == True:
-                self.player_cards[target], self.seen = deal_x_cards(2, self.seen)
+                self.player_cards[target], self.seen = deal_x_cards(
+                    2, self.seen)
             target = (target + 1) % self.player_ct
 
     def pf_play(self):
@@ -149,7 +174,8 @@ class GameEngine:
                     if target == 0:
                         decision = pf_bet(position, i, self.curr_bet, self.pot)
                     else:
-                        decision = profile_bet(position, i, self.curr_bet, self.pot)
+                        decision = profile_bet(
+                            position, i, self.curr_bet, self.pot)
                     if decision[0] == 'Bet':
                         self.bet(target, decision[1])
                     else:
@@ -160,12 +186,10 @@ class GameEngine:
                     self.hand_ct -= 1
             target = (target + 1) % self.hand_ct
             position += 1
-            
 
-    
+
 first_game = GameEngine(25, 6, 0.25, 0.5)
 first_game.deal_hands()
 print(first_game.com_cards)
 print(first_game.player_stacks)
 print(first_game.player_cards)
-    
