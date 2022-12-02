@@ -81,11 +81,6 @@ def pf_bet(position, options, curr_bet, pot):
     return ['Bet', 1.5]
 
 
-def profile_bet(position, options, curr_bet, pot):
-    """
-    Human players 
-    """
-    return ['Bet', 1.5]
 
 
 class GameEngine:
@@ -169,6 +164,30 @@ class GameEngine:
                     2, self.seen)
             target = (target + 1) % self.player_ct
 
+    def profile_pf_bet(self, i):
+        """
+        Preflop betting for non-AI players (only used during training phase)
+        Logic:
+        We use random numbers to introduce a non-deterministic quality so the 
+        bot doesn't become predictable. i represents the range of the preflop
+        quality that the current player's hand is in, with 1 being top and 4 being
+        bottom.  
+        """
+        num = np.random.uniform(0, 100, 1)
+        if i == 1:
+            if num <= 95:
+                return ['Bet', self.curr_bet]
+        elif i == 2:
+            if num <= 75:
+                return ['Bet', self.curr_bet]
+        elif i == 3:
+            if num <= 50:
+                return ['Bet', self.curr_bet]
+        elif i == 4:
+            if num <= 20:
+                return ['Bet', self.curr_bet]    
+        
+
     def pf_play(self):
         target = (self.dealer + 3) % self.player_ct
         position = 1
@@ -186,8 +205,7 @@ class GameEngine:
                     if target == 0:
                         decision = pf_bet(position, i, self.curr_bet, self.pot)
                     else:
-                        decision = profile_bet(
-                            position, i, self.curr_bet, self.pot)
+                        decision = self.profile_pf_bet(i)
                     if decision[0] == 'Bet':
                         self.bet(target, decision[1])
                     else:
@@ -198,6 +216,36 @@ class GameEngine:
                     self.hand_ct -= 1
             target = (target + 1) % self.hand_ct
             position += 1
+
+    def play(self):
+        target = (self.dealer + 3) % self.player_ct
+        position = 1
+        while target - 1 != self.dealer:
+            hand = self.player_cards[target]
+            c1 = int(hand[0][1])
+            c2 = int(hand[1][1])
+            if hand[0][0] == hand[1][0]:
+                encode = str(max(c1, c2)) + '_' + str(min(c1, c2)) + 's'
+            else:
+                encode = str(max(c1, c2)) + '_' + str(min(c1, c2)) + 'o'
+            for i in range(1, position+1):
+                options = self.pf_range[i]
+                if encode in options:
+                    if target == 0:
+                        decision = pf_bet(position, i, self.curr_bet, self.pot)
+                    else:
+                        decision = self.profile_pf_bet(i)
+                    if decision[0] == 'Bet':
+                        self.bet(target, decision[1])
+                    else:
+                        self.fold(target)
+                        self.hand_ct -= 1
+                elif i == position:
+                    self.fold(target)
+                    self.hand_ct -= 1
+            target = (target + 1) % self.hand_ct
+            position += 1
+
 
 
 first_game = GameEngine(25, 6, 0.25, 0.5)
