@@ -3,6 +3,7 @@ import pandas as pd
 import random
 import matplotlib.pyplot as plt
 import typing as T
+from bot_bets import preflop_bet, calculate_bet
 
 
 def classify(hand: T.List[T.List]) -> int:
@@ -68,17 +69,20 @@ def deal_x_cards(x: int, seen: T.Set):
     for suit in range(1, 5):
         for rank in range(1, 14):
             deck.add(str(suit) + "_" + str(rank))
+    deck = deck - seen
     drawn = random.sample(list(deck), k=x)
     for card in drawn:
         res.append([int(card[0]), (card[2:])])
     return res, seen | set(drawn)
 
 
-def pf_bet(position, options, curr_bet, pot):
+def pf_bet(position, cards, options, com_cards, curr_bet, pot):
     """
     Bot 
     """
-    return ['Bet', 1.5]
+
+    size = preflop_bet(position, cards, options, com_cards, curr_bet, pot)
+    return ['Bet', size]
 
 
 
@@ -232,7 +236,7 @@ class GameEngine:
                 options = self.pf_range[i]
                 if encode in options:
                     if target == 0:
-                        decision = pf_bet(position, i, self.curr_bet, self.pot)
+                        decision = pf_bet(position, hand, i, self.com_cards, self.curr_bet, self.pot)
                     else:
                         decision = self.profile_pf_bet(i)
                     if decision[0] == 'Bet':
@@ -253,3 +257,4 @@ first_game.deal_hands()
 print(first_game.com_cards)
 print(first_game.player_stacks)
 print(first_game.player_cards)
+print(first_game.seen)
