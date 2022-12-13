@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import itertools
 import random
 
@@ -108,14 +109,27 @@ def hand_probs(cards, com_cards):
 
 
 
-
-def preflop_bet(position, cards, options, com_cards, curr_bet, pot):
+def preflop_bet(rank, curr_bet, pot):
     pot_odds = curr_bet/(curr_bet + pot)
-    probs = hand_probs(cards, com_cards)
-    return 0
+    num = np.random.uniform(0, 100, 1)
+    if rank == 1:
+        if num <= 95:
+            return math.floor((1/pot_odds)*curr_bet)
+    elif rank == 2:
+        if num <= 75:
+            return math.floor((1/pot_odds)*curr_bet)
+    elif rank == 3:
+        if num <= 50:
+            return math.floor((1/pot_odds)*curr_bet)
+    elif rank == 4:
+        if num <= 20:
+            return math.floor((1/pot_odds)*curr_bet)
+
     
 
-def calculate_bet():
+def calculate_bet(cards, com_cards, curr_bet, pot):
+    pot_odds = curr_bet/(curr_bet + pot)
+    probs = hand_probs(cards, com_cards)
     return 0
 
 hand_probs([[3, '10'], [4, '7']], [[4, '8'], [2, '9'], [3, '11']])
