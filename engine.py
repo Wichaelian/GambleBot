@@ -84,7 +84,11 @@ def pf_bet(rank, curr_bet, pot):
     size = preflop_bet(rank, curr_bet, pot)
     return ['Bet', size]
 
-
+def in_game_bet(cards, com_cards, curr_bet, pot):
+    """
+    Bot 
+    """
+    return calculate_bet(cards, com_cards, curr_bet, pot)
 
 
 class GameEngine:
