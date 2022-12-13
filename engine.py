@@ -76,12 +76,12 @@ def deal_x_cards(x: int, seen: T.Set):
     return res, seen | set(drawn)
 
 
-def pf_bet(position, cards, options, com_cards, curr_bet, pot):
+def pf_bet(position, cards, options, curr_bet, pot):
     """
     Bot 
     """
 
-    size = preflop_bet(position, cards, options, com_cards, curr_bet, pot)
+    size = preflop_bet(position, cards, options, curr_bet, pot)
     return ['Bet', size]
 
 
@@ -222,33 +222,7 @@ class GameEngine:
             position += 1
 
     def play(self):
-        target = (self.dealer + 3) % self.player_ct
-        position = 1
-        while target - 1 != self.dealer:
-            hand = self.player_cards[target]
-            c1 = int(hand[0][1])
-            c2 = int(hand[1][1])
-            if hand[0][0] == hand[1][0]:
-                encode = str(max(c1, c2)) + '_' + str(min(c1, c2)) + 's'
-            else:
-                encode = str(max(c1, c2)) + '_' + str(min(c1, c2)) + 'o'
-            for i in range(1, position+1):
-                options = self.pf_range[i]
-                if encode in options:
-                    if target == 0:
-                        decision = pf_bet(position, hand, i, self.com_cards, self.curr_bet, self.pot)
-                    else:
-                        decision = self.profile_pf_bet(i)
-                    if decision[0] == 'Bet':
-                        self.bet(target, decision[1])
-                    else:
-                        self.fold(target)
-                        self.hand_ct -= 1
-                elif i == position:
-                    self.fold(target)
-                    self.hand_ct -= 1
-            target = (target + 1) % self.hand_ct
-            position += 1
+        return
 
 
 
