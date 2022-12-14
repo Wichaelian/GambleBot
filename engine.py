@@ -56,7 +56,7 @@ def classify(hand: T.List[T.List]) -> int:
     return res
 
 
-def deal_x_cards(x: int, seen: T.Set) -> T.Tuple(T.List[T.List[int]], T.Set[str]):
+def deal_x_cards(x: int, seen: T.Set) -> T.Tuple[T.List[T.List[int]], T.Set[str]]:
     """
     Deal x cards to the game, making sure not to deal cards already seen and update
     the seen set. 
@@ -192,6 +192,17 @@ class GameEngine:
                 '8_4s', '8_7o', '8_6o', '7_4s', '7_3s', '7_6o', '7_5o', '6_3s', '6_5o', '6_4o',
                 '5_2s', '5_4o', '4_2s', '3_2s'}
         }
+
+    def check(self, player: int) -> None:
+        """
+        Given player checks on their turn, meaning does nothing. Only permitted
+        if there have been no bets in the round yet.
+
+        Parameter: 
+        player: player that checks. Must be within [0, player_ct)
+        """
+        assert player in range(self.player_ct)
+        pass
 
     def bet(self, player: int, amt: float) -> None:
         """
