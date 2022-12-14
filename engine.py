@@ -107,6 +107,7 @@ class GameEngine:
         self.player_ct = player_ct
         self.hand_ct = player_ct
         self.play_status = [True for i in range(player_ct)]
+        self.moveleft_status = [True for i in range(player_ct)]
         self.bot_status = self.play_status[0]
 
         self.dealer = random.randrange(player_ct)
@@ -189,36 +190,62 @@ class GameEngine:
         num = np.random.uniform(0, 100, 1)
         if i == 1:
             if num <= 95:
-                return ['Call', self.curr_bet]
+                raiseorcall = np.random.uniform(0, 100, 1)
+                if raiseorcall <= 60:
+                    return ['Raise', 2*self.curr_bet]
+                else:
+                    return ['Call', self.curr_bet]
         elif i == 2:
             if num <= 75:
-                return ['Call', self.curr_bet]
+                raiseorcall = np.random.uniform(0, 100, 1)
+                if raiseorcall <= 60:
+                    return ['Raise', 2*self.curr_bet]
+                else:
+                    return ['Call', self.curr_bet]
         elif i == 3:
             if num <= 50:
-                return ['Call', self.curr_bet]
+                raiseorcall = np.random.uniform(0, 100, 1)
+                if raiseorcall <= 60:
+                    return ['Raise', 2*self.curr_bet]
+                else:
+                    return ['Call', self.curr_bet]
         elif i == 4:
             if num <= 20:
-                return ['Call', self.curr_bet]
+                raiseorcall = np.random.uniform(0, 100, 1)
+                if raiseorcall <= 60:
+                    return ['Raise', 2*self.curr_bet]
+                else:
+                    return ['Call', self.curr_bet]
         return ['Fold', 0]
 
+    def check_if_no_moves_left(self, arr):
+        for i in range(len(arr)):
+            if arr[i]:
+                return False
+        return True
+
     def pf_play(self):
-        target = (self.dealer + 3) % self.player_ct
-        position = 1
-        raiseinplay = False
-        while target - 1 != self.dealer:
-            print("dealer: ", str(self.dealer), "target: ", str(target), " play status: ",
-                  str(self.play_status[target]))
+        position = 0
+        while self.hand_ct > 1 and self.check_if_no_moves_left(self.moveleft_status) == False:
+            print("STILL IN PLAY ARRAY IS ", str(self.play_status))
+            print("MOVE LEFT ARRAY IS ", str(self.moveleft_status))
+
+            print("dealer: ", str(self.dealer), "position: ", str(position))
+
             if position >= self.player_ct:
-                break
+                position = 0
+
             print(self.play_status)
 
             if self.play_status[position] == False:
                 position += 1
-                target = (target + 1) % self.hand_ct
                 continue
-            print("play")
-            # print("play2")
-            hand = self.player_cards[target]
+
+            if self.moveleft_status[position] == False:
+                position += 1
+                continue
+
+            hand = self.player_cards[position]
             c1 = int(hand[0][1])
             c2 = int(hand[1][1])
             if hand[0][0] == hand[1][0]:
@@ -229,35 +256,29 @@ class GameEngine:
             for i in range(1, position+1):
                 options = self.pf_range[i]
                 if encode in options:
-                    if target == 0:
+                    # SET BOT TO BE POSITION 0. 
+                    if position == 0:
                         print("Bot")
                         decision = pf_bet(i, self.curr_bet, self.pot)
                     else:
                         decision = self.profile_pf_bet(i)
                     print("decision: ", str(decision))
                     if decision[0] == 'Call':
-                        # amtbeforebet = self.curr_bet
-                        # print("current bet is ", amtbeforebet)
-                        self.bet(target, self.curr_bet)
-                        # print("Player " + str(target) + " bets: " + str(decision[1]))
-                        # if decision[1] >= 2*amtbeforebet:
-                        #    raiseinplay = True
+                        self.bet(position, self.curr_bet)
+
                     elif decision[0] == 'Raise':
-                        self.bet(target, decision[1])
+                        for i in range(self.player_ct):
+                            if self.play_status[i]:
+                                self.moveleft_status[i] = True
+                        self.bet(position, decision[1])
                     else:
-                        self.fold(target)
-                elif i == position:
-                    self.fold(target)
-            target = (target + 1) % self.hand_ct
+                        self.fold(position)
+                elif i == position:  
+                    self.fold(position)    
+            self.moveleft_status[position] = False
+
             print("end_for")
-            print("dealer: ", str(self.dealer), "target: ", str(target),
-                  " play status: ", str(self.play_status[target]))
-            if position == self.player_ct:
-                print("Reached end of players")
-                if raiseinplay == False:
-                    break
-                target = (self.dealer + 3) % self.hand_ct
-                position = 1
+                
             print("loop end")
             position += 1
 
