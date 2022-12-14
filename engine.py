@@ -513,8 +513,13 @@ class GameEngine:
                         if bet_in_play == True:
                             self.fold(position)
                 elif i == position:
+<<<<<<< HEAD
                     if bet_in_play == True:
                         self.fold(position)
+=======
+                    self.bet(position, self.curr_bet)
+                    self.fold(position)
+>>>>>>> 1fccf9afc95586b9a467fe87fefd35218eb0ab26
             self.moveleft_status[position] = False
 
             print("end_for")
