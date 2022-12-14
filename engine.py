@@ -7,7 +7,7 @@ from bot_bets import preflop_bet, calculate_bet
 from itertools import combinations
 
 
-def classify(hand: T.List[T.List]) -> int:
+def classify(hand) -> int:
     """
     Classifies a given hand using rules described at https://archive.ics.uci.edu/ml/datasets/Poker+Hand.
 
@@ -22,17 +22,15 @@ def classify(hand: T.List[T.List]) -> int:
     r = 0
     res = 0
     straight = 0
-    for index, atr in enumerate(hand):
-        if index % 2 == 0:
-            if atr in suit:
-                suit[atr] += 1
-            else:
-                suit[atr] = 1
+    for suit_c, rank_c in hand:
+        if suit_c in suit:
+            suit[suit_c] += 1
         else:
-            if atr in rank:
-                rank[atr] += 1
-            else:
-                rank[atr] = 1
+            suit[suit_c] = 1
+        if rank_c in rank:
+            rank[rank_c] += 1
+        else:
+            rank[rank_c] = 1
     s_max = max(suit.values())
     if s_max == 5:
         res = max(res, 5)
@@ -45,7 +43,7 @@ def classify(hand: T.List[T.List]) -> int:
     if rank_list[0] == 1 and rank_list[-1] == 13:
         seq = [1, 10, 11, 12, 13]
     else:
-        seq = [rank_list[0] + i for i in range(5)]
+        seq = [rank_list[0] + str(i) for i in range(5)]
     if rank_list == seq:
         straight = 1
         res = max(res, 4)
@@ -367,7 +365,8 @@ class GameEngine:
                                 self.moveleft_status[i] = True
                         self.bet(position, decision[1])
                     else:
-                        self.fold(position)
+                        # self.fold(position) tmp for testing
+                        self.bet(position, self.curr_bet)
                 elif i == position:
                     self.fold(position)
             self.moveleft_status[position] = False
@@ -441,6 +440,7 @@ class GameEngine:
                     else:
                         self.fold(position)
                 elif i == position:
+                    self.bet(position, self.curr_bet)
                     self.fold(position)
             self.moveleft_status[position] = False
 
@@ -453,11 +453,30 @@ class GameEngine:
         """
         Evaluate remaining players' hands and return winner
         """
+        scores = [-1 for i in range(self.player_ct)]
+        max_score = -1
+        winner = -1
+        winning_hands = [[] for i in range(self.player_ct)]
         for i in range(self.player_ct):
             if self.play_status[i]:
+                res_max = -1
                 all_cards = self.com_cards + self.player_cards[i]
+                com_tuple = (self.com_cards[0], self.com_cards[1],
+                             self.com_cards[2], self.com_cards[3], self.com_cards[4])
                 com_subsets = list(combinations(all_cards, 5))
-                print(com_subsets)
+                com_subsets.remove(com_tuple)
+                for quint in com_subsets:
+                    res = classify(quint)
+                    if res > res_max:
+                        res_max = res
+                        winning_hands[i] = quint
+                scores[i] = res_max
+                if res_max > max_score:
+                    max_score = res_max
+                    winner = i
+        print(winning_hands)
+        print(scores)
+        print(winner)
 
     def play(self) -> None:
         """
@@ -465,6 +484,7 @@ class GameEngine:
         """
         print(self.com_cards)
         self.preflop_play()
+        print(self.play_status)
         self.postflop_play()
         self.flop(1)
         self.postflop_play()
