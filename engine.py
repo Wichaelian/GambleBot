@@ -59,13 +59,13 @@ def classify(hand: T.List[T.List]) -> int:
 def deal_x_cards(x: int, seen: T.Set) -> T.Tuple[T.List[T.List[int]], T.Set[str]]:
     """
     Deal x cards to the game, making sure not to deal cards already seen and update
-    the seen set. 
+    the seen set.
 
     Parameters:
     x: number of cards to deal
     seen: set of already seen cards
 
-    Return: resulting dealt cards and updated set of seen cards 
+    Return: resulting dealt cards and updated set of seen cards
     """
     deck = set()
     res = []
@@ -81,15 +81,15 @@ def deal_x_cards(x: int, seen: T.Set) -> T.Tuple[T.List[T.List[int]], T.Set[str]
 
 def preflop_bet_bot(rank: int, curr_bet: float, pot: float) -> T.List:
     """
-    Preflop betting for the bot. Given an amount for the pot, the current bet, and 
+    Preflop betting for the bot. Given an amount for the pot, the current bet, and
     the rank of the hand, calculate whether to call or raise.
 
     Parameters:
-    rank: hand rank 
+    rank: hand rank
     curr_bet: current bet in this round
-    pot: amount of money in the pot 
+    pot: amount of money in the pot
 
-    Return: 
+    Return:
     List with [raise/call, amount to raise or call]
     """
     curr = curr_bet
@@ -120,12 +120,12 @@ class GameEngine:
 
     player_ct: number of players
     hand_ct: number of active players, ie, have not folded
-    play_status: list of which players have folded, in order of player index 
+    play_status: list of which players have folded, in order of player index
     moveleft_status: list tracking whether player i has a move left in this round of betting
-    bot_status: whether the bot is in play. bot is player 0 by default 
+    bot_status: whether the bot is in play. bot is player 0 by default
 
-    dealer: player number representing the dealer 
-    sm_blind: amount that small blind bets 
+    dealer: player number representing the dealer
+    sm_blind: amount that small blind bets
     big_blind: amount that big blind bets
     curr_bet: current betting amount, starts off as big blind value
     pot: amount of money in the pot. Initially small blind bet + big blind bet
@@ -135,15 +135,15 @@ class GameEngine:
 
     player_cards: list containing tuples of each player's hand
     bot_card: the bot's hand
-    com_cards: community cards currently visible 
+    com_cards: community cards currently visible
     seen: set of seen cards
 
-    pf_range: preflop ranges for hands 
+    pf_range: preflop ranges for hands
     """
 
     def __init__(self, init_stack: float, player_ct: int, sm: float, big: float):
         """
-        Initialize a game engine according to the class specification with a given 
+        Initialize a game engine according to the class specification with a given
         number of players, stack per player, and big and small blind bet amounts.
         """
         self.player_ct = player_ct
@@ -198,7 +198,7 @@ class GameEngine:
         Given player checks on their turn, meaning does nothing. Only permitted
         if there have been no bets in the round yet.
 
-        Parameter: 
+        Parameter:
         player: player that checks. Must be within [0, player_ct)
         """
         assert player in range(self.player_ct)
@@ -210,10 +210,10 @@ class GameEngine:
 
         Parameters:
         player: player that is betting. Must be within range [0, player_ct)
-        amt: amount player is betting. Must be either a call or raise amount 
+        amt: amount player is betting. Must be either a call or raise amount
 
-        Precondition: 
-        player must have at least amt money in its stack 
+        Precondition:
+        player must have at least amt money in its stack
         """
         assert amt == self.curr_bet or amt >= 2*self.curr_bet
         assert self.player_stacks[player] >= amt
@@ -226,18 +226,18 @@ class GameEngine:
         Given player calls, or bets current amount.
 
         Parameters:
-        player: player that calls. Must be within range [0, player_ct)  
+        player: player that calls. Must be within range [0, player_ct)
         """
         assert player in range(self.player_ct)
         self.bet(player, amt=self.curr_bet)
 
     def fold(self, player: int) -> None:
         """
-        Given player folds. Update game state by marking this player inactive and 
-        reducing number of active hands. 
+        Given player folds. Update game state by marking this player inactive and
+        reducing number of active hands.
 
         Parameters:
-        player: player that folds. Must be within range [0, player_ct)  
+        player: player that folds. Must be within range [0, player_ct)
         """
         assert player in range(self.player_ct)
         self.play_status[player] = False
@@ -245,7 +245,7 @@ class GameEngine:
 
     def deal_hands(self) -> None:
         """
-        Deal hands for each player. 
+        Deal hands for each player.
         """
         target = self.dealer
         if self.play_status[target] == True:
@@ -267,7 +267,7 @@ class GameEngine:
         quality that the current player's hand is in, with 1 being top and 4 being
         bottom.
 
-        Parameters: 
+        Parameters:
         i: rank of player hand that we're betting on
         """
         num = np.random.uniform(0, 100, 1)
@@ -303,12 +303,12 @@ class GameEngine:
 
     def check_if_no_moves_left(self, arr: T.List[T.List[bool]]) -> bool:
         """
-        Check if any players have moves left based on the matrix tracking 
+        Check if any players have moves left based on the matrix tracking
         player statuses.
 
         Return:
         True if no moves are left,
-        False if there are possible moves left 
+        False if there are possible moves left
         """
         for i in range(len(arr)):
             if arr[i]:
@@ -319,7 +319,7 @@ class GameEngine:
         """
         Preflop betting rounds.
         """
-        position = 0
+        position = (self.dealer + 3) % self.player_ct
         while self.hand_ct > 1 and self.check_if_no_moves_left(self.moveleft_status) == False:
             print("STILL IN PLAY ARRAY IS ", str(self.play_status))
             print("MOVE LEFT ARRAY IS ", str(self.moveleft_status))
@@ -327,7 +327,7 @@ class GameEngine:
             print("dealer: ", str(self.dealer), "position: ", str(position))
 
             if position >= self.player_ct:
-                position = 0
+                position = (self.dealer + 3) % self.player_ct
 
             print(self.play_status)
 
@@ -376,23 +376,98 @@ class GameEngine:
             print("loop end")
             position += 1
 
-    def flop(self) -> None:
+    def flop(self, x: int) -> None:
         """
-        Deal three communty cards and print them to the output 
+        Deal x amount of communty cards and print them to the output
         """
-        self.com_cards, self.seen = deal_x_cards(3, self.seen)
+        new_cards, self.seen = deal_x_cards(x, self.seen)
+        print("new", str(new_cards))
+        self.com_cards += new_cards
         print("Flop: ", str(self.com_cards))
 
     def postflop_play(self) -> None:
         """
-        Postflop game play 
+        Postflop game play
+        **** TODO: ADD CHECK LOGIC *****
         """
-        pass
+        print("****************PF")
+        position = (self.dealer + 2) % self.player_ct
+        while self.hand_ct > 1 and self.check_if_no_moves_left(self.moveleft_status) == False:
+            print("STILL IN PLAY ARRAY IS ", str(self.play_status))
+            print("MOVE LEFT ARRAY IS ", str(self.moveleft_status))
+
+            print("dealer: ", str(self.dealer), "position: ", str(position))
+
+            if position >= self.player_ct:
+                position = (self.dealer + 2) % self.player_ct
+
+            print(self.play_status)
+
+            if self.play_status[position] == False:
+                position += 1
+                continue
+
+            if self.moveleft_status[position] == False:
+                position += 1
+                continue
+
+            hand = self.player_cards[position]
+            c1 = int(hand[0][1])
+            c2 = int(hand[1][1])
+            if hand[0][0] == hand[1][0]:
+                encode = str(max(c1, c2)) + '_' + str(min(c1, c2)) + 's'
+            else:
+                encode = str(max(c1, c2)) + '_' + str(min(c1, c2)) + 'o'
+            print("hand encodes to ",  encode)
+            for i in range(1, position+1):
+                options = self.pf_range[i]
+                if encode in options:
+                    # SET BOT TO BE POSITION 0.
+                    if position == 0:
+                        print("Bot")
+                        decision = preflop_bet_bot(i, self.curr_bet, self.pot)
+                    else:
+                        decision = self.profile_preflop_bet(i)
+                    print("decision: ", str(decision))
+                    if decision[0] == 'Call':
+                        self.bet(position, self.curr_bet)
+
+                    elif decision[0] == 'Raise':
+                        for i in range(self.player_ct):
+                            if self.play_status[i]:
+                                self.moveleft_status[i] = True
+                        self.bet(position, decision[1])
+                    else:
+                        self.fold(position)
+                elif i == position:
+                    self.fold(position)
+            self.moveleft_status[position] = False
+
+            print("end_for")
+
+            print("loop end")
+            position += 1
+
+    def game_end(self) -> int:
+        """
+        Evaluate remaining players' hands and return winner
+        """
+        for i in range(self.player_ct):
+            if self.play_status[i]:
+                pass
 
     def play(self) -> None:
         """
-        Main gameplay loop. 
+        Main gameplay loop.
         """
+        print(self.com_cards)
+        self.preflop_play()
+        self.postflop_play()
+        self.flop(1)
+        self.postflop_play()
+        self.flop(1)
+        self.postflop_play()
+        print(self.com_cards)
 
 
 first_game = GameEngine(25, 6, 0.25, 0.5)
@@ -403,4 +478,4 @@ print(first_game.player_stacks)
 print(first_game.player_cards)
 print(first_game.seen)
 print("dealer", str(first_game.dealer))
-first_game.preflop_play()
+first_game.play()
