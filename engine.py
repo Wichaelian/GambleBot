@@ -80,8 +80,10 @@ def pf_bet(rank, curr_bet, pot):
     """
     Bot 
     """
-
+    curr = curr_bet
     size = preflop_bet(rank, curr_bet, pot)
+    if (size > curr):
+        return ['Raise', size]
     return ['Bet', size]
 
 def in_game_bet(cards, com_cards, curr_bet, pot):
@@ -114,8 +116,8 @@ class GameEngine:
         self.player_stacks = [init_stack for i in range(player_ct)]
         self.bot_stack = self.player_stacks[0]
 
-        self.player_stacks[self.dealer +
-                           1] = max(0, self.player_stacks[self.dealer] - sm)
+        self.player_stacks[(self.dealer +
+                           1) % player_ct] = max(0, self.player_stacks[self.dealer] - sm)
         self.player_stacks[(self.dealer + 2) % player_ct] = max(0,
                                                                 self.player_stacks[(self.dealer + 2) % player_ct] - big)
 
@@ -130,7 +132,7 @@ class GameEngine:
                 '13_13o', '13_12s', '13_11s', '13_10s', '13_12o',
                 '12_12o', '12_11s', '12_10s',
                 '11_11o', '11_10s',
-                '10_10o', '10_9s',
+                '10_10o', '10_9s',  
                 '9_9o'},
             2: {'13_9s', '13_8s', '13_11o', '12_9s', '12_11o', '11_9s', '9_8s', '8_7s', '7_6s', '5_4s'},
             3: {'13_7s', '13_6s', '13_5s', '13_10o', '12_8s', '12_10o', '11_8s', '11_10o',
@@ -146,7 +148,7 @@ class GameEngine:
         }
 
     def bet(self, player, amt):
-        assert amt >= 2*self.curr_bet
+        assert amt == self.curr_bet or amt >= 2*self.curr_bet
         assert self.player_stacks[player] >= amt
         self.player_stacks[player] -= amt
         self.pot += amt
@@ -161,7 +163,6 @@ class GameEngine:
 
     def deal_hands(self):
         players = self.player_ct
-        self.com_cards, self.seen = deal_x_cards(3, self.seen)
         target = self.dealer
         if self.play_status[target] == True:
             self.player_cards[target], self.seen = deal_x_cards(2, self.seen)
@@ -171,6 +172,7 @@ class GameEngine:
                 self.player_cards[target], self.seen = deal_x_cards(
                     2, self.seen)
             target = (target + 1) % self.player_ct
+        self.com_cards, self.seen = deal_x_cards(3, self.seen)
 
     def profile_pf_bet(self, i):
         """
@@ -199,7 +201,10 @@ class GameEngine:
     def pf_play(self):
         target = (self.dealer + 3) % self.player_ct
         position = 1
+        raiseinplay = False
         while target - 1 != self.dealer:
+            print("play")
+            #print("play2")
             hand = self.player_cards[target]
             c1 = int(hand[0][1])
             c2 = int(hand[1][1])
@@ -207,6 +212,7 @@ class GameEngine:
                 encode = str(max(c1, c2)) + '_' + str(min(c1, c2)) + 's'
             else:
                 encode = str(max(c1, c2)) + '_' + str(min(c1, c2)) + 'o'
+            print("hand encodes to ",  encode)
             for i in range(1, position+1):
                 options = self.pf_range[i]
                 if encode in options:
@@ -215,7 +221,12 @@ class GameEngine:
                     else:
                         decision = self.profile_pf_bet(i)
                     if decision[0] == 'Bet':
+                        amtbeforebet = self.curr_bet
+                        print("current bet is ", amtbeforebet)
                         self.bet(target, decision[1])
+                        print("Player " + str(target) + " bets: " + str(decision[1]))
+                        if decision[1] >= 2*amtbeforebet:
+                            raiseinplay = True
                     else:
                         self.fold(target)
                         self.hand_ct -= 1
@@ -223,6 +234,12 @@ class GameEngine:
                     self.fold(target)
                     self.hand_ct -= 1
             target = (target + 1) % self.hand_ct
+            if position == self.player_ct:
+                if raiseinplay == False:
+                    break
+                target = (self.dealer + 3) % self.player_ct
+                position = 1
+                
             position += 1
         self.play()
 
@@ -233,7 +250,9 @@ class GameEngine:
 
 first_game = GameEngine(25, 6, 0.25, 0.5)
 first_game.deal_hands()
+
 print(first_game.com_cards)
 print(first_game.player_stacks)
 print(first_game.player_cards)
 print(first_game.seen)
+first_game.pf_play()
