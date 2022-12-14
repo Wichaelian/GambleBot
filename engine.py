@@ -11,10 +11,10 @@ def classify(hand: T.List[T.List]) -> int:
     Classifies a given hand using rules described at https://archive.ics.uci.edu/ml/datasets/Poker+Hand.
 
     Parameter:
-    hand - Poker hand to classify. 
+    hand - Poker hand to classify.
 
     Return:
-    The integer code for the hand classification. 
+    The integer code for the hand classification.
     """
     suit = {}
     rank = {}
@@ -62,7 +62,7 @@ def deal_x_cards(x: int, seen: T.Set):
 
     Parameters:
     x - number of cards to deal
-    seen - set of already seen cards 
+    seen - set of already seen cards
     """
     deck = set()
     res = []
@@ -78,17 +78,19 @@ def deal_x_cards(x: int, seen: T.Set):
 
 def pf_bet(rank, curr_bet, pot):
     """
-    Bot 
+    Bot
     """
     curr = curr_bet
     size = preflop_bet(rank, curr_bet, pot)
+    print("size: ", str(size))
     if (size >= 2*curr):
         return ['Raise', size]
     return ['Call', curr_bet]
 
+
 def in_game_bet(cards, com_cards, curr_bet, pot):
     """
-    Bot 
+    Bot
     """
     return calculate_bet(cards, com_cards, curr_bet, pot)
 
@@ -96,7 +98,7 @@ def in_game_bet(cards, com_cards, curr_bet, pot):
 class GameEngine:
 
     """
-    Initialize a game with a set initial stack amount per player, 
+    Initialize a game with a set initial stack amount per player,
     number of players, and small/big blind values.
 
     """
@@ -108,6 +110,7 @@ class GameEngine:
         self.bot_status = self.play_status[0]
 
         self.dealer = random.randrange(player_ct)
+
         self.sm_blind = sm
         self.big_blind = big
         self.curr_bet = big
@@ -132,7 +135,7 @@ class GameEngine:
                 '13_13o', '13_12s', '13_11s', '13_10s', '13_12o',
                 '12_12o', '12_11s', '12_10s',
                 '11_11o', '11_10s',
-                '10_10o', '10_9s',  
+                '10_10o', '10_9s',
                 '9_9o'},
             2: {'13_9s', '13_8s', '13_11o', '12_9s', '12_11o', '11_9s', '9_8s', '8_7s', '7_6s', '5_4s'},
             3: {'13_7s', '13_6s', '13_5s', '13_10o', '12_8s', '12_10o', '11_8s', '11_10o',
@@ -178,35 +181,39 @@ class GameEngine:
         """
         Preflop betting for non-AI players (only used during training phase)
         Logic:
-        We use random numbers to introduce a non-deterministic quality so the 
+        We use random numbers to introduce a non-deterministic quality so the
         bot doesn't become predictable. i represents the range of the preflop
         quality that the current player's hand is in, with 1 being top and 4 being
-        bottom.  
+        bottom.
         """
         num = np.random.uniform(0, 100, 1)
         if i == 1:
             if num <= 95:
-                return ['Bet', self.curr_bet]
+                return ['Call', self.curr_bet]
         elif i == 2:
             if num <= 75:
-                return ['Bet', self.curr_bet]
+                return ['Call', self.curr_bet]
         elif i == 3:
             if num <= 50:
-                return ['Bet', self.curr_bet]
+                return ['Call', self.curr_bet]
         elif i == 4:
             if num <= 20:
-                return ['Bet', self.curr_bet]    
-        
+                return ['Call', self.curr_bet]
+        return ['Fold', 0]
 
     def pf_play(self):
         target = (self.dealer + 3) % self.player_ct
         position = 1
         raiseinplay = False
-        while target - 1 != self.dealer:
+        while target - 1 != self.dealer and self.hand_ct > 0:
+            print("dealer: ", str(self.dealer), "target: ", str(target), " play status: ",
+                  str(self.play_status[target]))
             if self.play_status[target] == False:
+                position += 1
+                target = (target + 1) % self.hand_ct
                 continue
-            #print("play")
-            #print("play2")
+            print("play")
+            # print("play2")
             hand = self.player_cards[target]
             c1 = int(hand[0][1])
             c2 = int(hand[1][1])
@@ -219,37 +226,39 @@ class GameEngine:
                 options = self.pf_range[i]
                 if encode in options:
                     if target == 0:
+                        print("Bot")
                         decision = pf_bet(i, self.curr_bet, self.pot)
                     else:
                         decision = self.profile_pf_bet(i)
+                    print("decision: ", str(decision))
                     if decision[0] == 'Call':
-                        #amtbeforebet = self.curr_bet
-                        #print("current bet is ", amtbeforebet)
+                        # amtbeforebet = self.curr_bet
+                        # print("current bet is ", amtbeforebet)
                         self.bet(target, self.curr_bet)
-                        #print("Player " + str(target) + " bets: " + str(decision[1]))
-                        #if decision[1] >= 2*amtbeforebet:
+                        # print("Player " + str(target) + " bets: " + str(decision[1]))
+                        # if decision[1] >= 2*amtbeforebet:
                         #    raiseinplay = True
                     elif decision[0] == 'Raise':
                         self.bet(target, decision[1])
                     else:
                         self.fold(target)
-                        self.hand_ct -= 1
                 elif i == position:
                     self.fold(target)
-                    self.hand_ct -= 1
             target = (target + 1) % self.hand_ct
+            print("end_for")
+            print("dealer: ", str(self.dealer), "target: ", str(target),
+                  " play status: ", str(self.play_status[target]))
             if position == self.player_ct:
+                print("Reached end of players")
                 if raiseinplay == False:
                     break
                 target = (self.dealer + 3) % self.hand_ct
                 position = 1
-                
+
             position += 1
-        self.play()
 
     def play(self):
         return 0
-
 
 
 first_game = GameEngine(25, 6, 0.25, 0.5)
@@ -259,4 +268,5 @@ print(first_game.com_cards)
 print(first_game.player_stacks)
 print(first_game.player_cards)
 print(first_game.seen)
+print("dealer", str(first_game.dealer))
 first_game.pf_play()
