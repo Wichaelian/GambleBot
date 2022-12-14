@@ -3,6 +3,7 @@ import math
 import itertools
 import random
 
+
 def deal_x_cards(x, seen):
     """
     Deal x cards to the game, making sure not to deal cards already seen.
@@ -72,8 +73,10 @@ def classify(hand) -> int:
             res = max(res, 8)
     return res, suit, rank, set(seq)
 
+
 def flatten(l):
     return [int(item) for sublist in l for item in sublist]
+
 
 def hand_probs(cards, com_cards):
     acc = 10000
@@ -87,8 +90,9 @@ def hand_probs(cards, com_cards):
         remainder, _ = deal_x_cards(2, seen_cards)
 
         "get all possible 3 card subsets out of 5 total community cards"
-        com_subsets = list(itertools.combinations(set([str(i[0]) + '_' + i[1] for i in (remainder + com_cards)]), 3))
-        
+        com_subsets = list(itertools.combinations(
+            set([str(i[0]) + '_' + i[1] for i in (remainder + com_cards)]), 3))
+
         "get classfication of 2 cards in hand and a 3 card subset"
         for trip in com_subsets:
             trip_list = [[int(card[0]), (card[2:])] for card in trip]
@@ -97,16 +101,15 @@ def hand_probs(cards, com_cards):
 
             "record instance in prob_vector"
             prob_vector[res] += 1
-    
+
     "normalize prob_vector"
     prob_vector = prob_vector/(10*acc)
-    
+
     "update prob_vector if some hand is already existing"
     prob_vector[current_hand] = 1
     print(prob_vector)
 
     return prob_vector
-
 
 
 def preflop_bet(rank, curr_bet, pot):
@@ -124,12 +127,13 @@ def preflop_bet(rank, curr_bet, pot):
     elif rank == 4:
         if num <= 20:
             return math.floor((1/pot_odds)*curr_bet)
+    return 0
 
-    
 
 def calculate_bet(cards, com_cards, curr_bet, pot):
     pot_odds = curr_bet/(curr_bet + pot)
     probs = hand_probs(cards, com_cards)
     return 0
+
 
 hand_probs([[3, '10'], [4, '7']], [[4, '8'], [2, '9'], [3, '11']])

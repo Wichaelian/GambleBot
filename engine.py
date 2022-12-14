@@ -205,10 +205,14 @@ class GameEngine:
         target = (self.dealer + 3) % self.player_ct
         position = 1
         raiseinplay = False
-        while target - 1 != self.dealer and self.hand_ct > 0:
+        while target - 1 != self.dealer:
             print("dealer: ", str(self.dealer), "target: ", str(target), " play status: ",
                   str(self.play_status[target]))
-            if self.play_status[target] == False:
+            if position >= self.player_ct:
+                break
+            print(self.play_status)
+
+            if self.play_status[position] == False:
                 position += 1
                 target = (target + 1) % self.hand_ct
                 continue
@@ -254,7 +258,7 @@ class GameEngine:
                     break
                 target = (self.dealer + 3) % self.hand_ct
                 position = 1
-
+            print("loop end")
             position += 1
 
     def play(self):
