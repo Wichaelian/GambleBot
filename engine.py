@@ -82,9 +82,9 @@ def pf_bet(rank, curr_bet, pot):
     """
     curr = curr_bet
     size = preflop_bet(rank, curr_bet, pot)
-    if (size > curr):
+    if (size >= 2*curr):
         return ['Raise', size]
-    return ['Bet', size]
+    return ['Call', curr_bet]
 
 def in_game_bet(cards, com_cards, curr_bet, pot):
     """
@@ -203,7 +203,9 @@ class GameEngine:
         position = 1
         raiseinplay = False
         while target - 1 != self.dealer:
-            print("play")
+            if self.play_status[target] == False:
+                continue
+            #print("play")
             #print("play2")
             hand = self.player_cards[target]
             c1 = int(hand[0][1])
@@ -220,13 +222,15 @@ class GameEngine:
                         decision = pf_bet(i, self.curr_bet, self.pot)
                     else:
                         decision = self.profile_pf_bet(i)
-                    if decision[0] == 'Bet':
-                        amtbeforebet = self.curr_bet
-                        print("current bet is ", amtbeforebet)
+                    if decision[0] == 'Call':
+                        #amtbeforebet = self.curr_bet
+                        #print("current bet is ", amtbeforebet)
+                        self.bet(target, self.curr_bet)
+                        #print("Player " + str(target) + " bets: " + str(decision[1]))
+                        #if decision[1] >= 2*amtbeforebet:
+                        #    raiseinplay = True
+                    elif decision[0] == 'Raise':
                         self.bet(target, decision[1])
-                        print("Player " + str(target) + " bets: " + str(decision[1]))
-                        if decision[1] >= 2*amtbeforebet:
-                            raiseinplay = True
                     else:
                         self.fold(target)
                         self.hand_ct -= 1
@@ -237,7 +241,7 @@ class GameEngine:
             if position == self.player_ct:
                 if raiseinplay == False:
                     break
-                target = (self.dealer + 3) % self.player_ct
+                target = (self.dealer + 3) % self.hand_ct
                 position = 1
                 
             position += 1
