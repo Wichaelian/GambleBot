@@ -4,6 +4,7 @@ import random
 import matplotlib.pyplot as plt
 import typing as T
 from bot_bets import preflop_bet, calculate_bet
+from itertools import combinations
 
 
 def classify(hand: T.List[T.List]) -> int:
@@ -327,7 +328,7 @@ class GameEngine:
             print("dealer: ", str(self.dealer), "position: ", str(position))
 
             if position >= self.player_ct:
-                position = (self.dealer + 3) % self.player_ct
+                position = 0
 
             print(self.play_status)
 
@@ -454,7 +455,9 @@ class GameEngine:
         """
         for i in range(self.player_ct):
             if self.play_status[i]:
-                pass
+                all_cards = self.com_cards + self.player_cards[i]
+                com_subsets = list(combinations(all_cards, 5))
+                print(com_subsets)
 
     def play(self) -> None:
         """
@@ -468,6 +471,7 @@ class GameEngine:
         self.flop(1)
         self.postflop_play()
         print(self.com_cards)
+        self.game_end()
 
 
 first_game = GameEngine(25, 6, 0.25, 0.5)
