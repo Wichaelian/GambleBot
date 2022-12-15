@@ -170,6 +170,10 @@ class GameEngine:
         Initialize a game engine according to the class specification with a given
         number of players, stack per player, and big and small blind bet amounts.
         """
+        self.efficiency = 0
+        self.differential_sum = 0
+        self.efficiency_list = []
+        self.bot_PnL_list = []
         self.player_ct = player_ct
         self.hand_ct = player_ct
         self.play_status = [True for i in range(player_ct)]
@@ -545,7 +549,7 @@ class GameEngine:
                 else:
                     decision = decision_maker(
                         self.prob_matrices, self.player_cards[0], self.com_cards, self.curr_bet, self.pot, 100)
-
+                self.differential_sum += decision[2]
             rank = self.classify_player_best_hand(position)
             decision = self.profile_postflop_bet(rank, bet_in_play, position)
             print("player ", str(position), " decision ", str(decision))
@@ -592,7 +596,7 @@ class GameEngine:
                 res_max = res
         return res_max
 
-    def game_end(self) -> int:
+    def game_end(self, round_count) -> int:
         """
         Evaluate remaining players' hands and return winner
         """
@@ -612,8 +616,15 @@ class GameEngine:
         self.player_stacks[winner] += self.pot
         print(scores)
         print("WINNER IS ", winner)
+        if round_count > 0:
+            d_avg_aggregate = self.differential_sum/round_count
+        else:
+            d_avg_aggregate = 0
+
         self.action_statuses[i] = self.prob_matrices[winner].update_winner()
         self.round_in_play += 1
+        
+        return d_avg_aggregate, winner
 
     def play(self) -> None:
         """
@@ -635,6 +646,9 @@ class GameEngine:
             self.prev_bet = self.big_blind
 
         print("game 2 reset")
+
+        initial_bot_stack = self.player_stacks[0]
+
         self.preflop_play()
         if self.hand_ct == 1:
             return
@@ -647,13 +661,20 @@ class GameEngine:
             else:
                 self.prob_matrices.append(prob_dictionary(
                     self.player_cards[i].copy(), self.com_cards.copy(), np.array([0, 0, 0])))
-        self.postflop_play()
+
+        round_count = 0
+
+        if self.play_status[0]:
+            round_count += 1
+        self.postflop_play()      
         if self.hand_ct == 1:
             return
 
         n_card = self.flop(1)
         for i in range(self.player_ct):
             self.prob_matrices[i].update_probs_ncard(n_card[0].copy())
+        if self.play_status[0]:
+            round_count += 1
         self.postflop_play()
         if self.hand_ct == 1:
             return
@@ -661,12 +682,32 @@ class GameEngine:
         n_card_2 = self.flop(1)
         for i in range(self.player_ct):
             self.prob_matrices[i].update_probs_ncard(n_card_2[0].copy())
+        if self.play_status[0]:
+            round_count += 1
         self.postflop_play()
         if self.hand_ct == 1:
             return
         print("status ", str(self.play_status))
+        
+        d_avg_aggregate, winner = self.game_end(round_count)
 
-        self.game_end()
+        final_bot_stack = self.player_stacks[0]
+        
+        if d_avg_aggregate != 0:
+            if d_avg_aggregate < 0 and winner == 0:
+                self.efficiency = self.efficiency - 2 * ((final_bot_stack - initial_bot_stack)/self.big_blind)/d_avg_aggregate
+            elif d_avg_aggregate > 0 and winner == 0:
+                self.efficiency = self.efficiency + ((final_bot_stack - initial_bot_stack)/self.big_blind)/d_avg_aggregate
+            elif d_avg_aggregate < 0 and winner != 0:
+                self.efficiency = self.efficiency - ((final_bot_stack - initial_bot_stack)/self.big_blind)/d_avg_aggregate
+            elif d_avg_aggregate > 0 and winner != 0:
+                self.efficiency = self.efficiency + 2 * ((final_bot_stack - initial_bot_stack)/self.big_blind)/d_avg_aggregate
+            else:
+                self.efficiency = 0
+
+        print("EFFICIENCY OF BOT IS: ", self.efficiency)
+        self.efficiency_list.append(self.efficiency)
+        self.bot_PnL_list.append(final_bot_stack - initial_bot_stack)
 
 
 first_game = GameEngine(1000, 6, 5, 10)
