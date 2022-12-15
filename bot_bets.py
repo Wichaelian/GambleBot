@@ -79,7 +79,7 @@ def flatten(l):
    return [int(item) for sublist in l for item in sublist]
  
 def hand_probs(cards, com_cards):
-   acc = 3
+   acc = 10
    prob_vector = np.zeros(10)
  
    seen_cards = set([str(i[0]) + '_' + i[1] for i in (cards + com_cards)])
@@ -144,7 +144,6 @@ def preflop_bet(rank, curr_bet, pot):
 def score(cards, com_cards):
    probs, _ = hand_probs(cards, com_cards)
    hands = np.array([2**i for i in range(10)])
-   # hands = np.array([np.exp(i) for i in range(10)])
   
    one_dex = np.where(probs == 1)[0]
    sub_probs = probs[one_dex[0]:]
@@ -366,6 +365,8 @@ class prob_dictionary:
  
    def update_probs_ncard(self, card):
        self.known_cards.append(card)
+       if len(self.known_cards == 7):
+        return
        prob_dictionary = self.prob_dict
        hand_prob_dict = self.hand_prob_dict
        new_overall = {}
@@ -400,19 +401,19 @@ class prob_dictionary:
 opp_ct = 3
 obj_list = []
 for opp in range(opp_ct):
-   obj_list.append(prob_dictionary([[2, '1'], [2, '13']], [[4, '1'], [4, '3'], [4, '12']]))
+   obj_list.append(prob_dictionary([[2, '7'], [2, '8']], [[3, '12'], [1, '5'], [4, '6']]))
  
 obj_list[0].update_probs_action("Call", 10, 10)
-obj_list[1].update_probs_action("Raise", 20, 10)
-obj_list[2].update_probs_action('Call', 20, 20)
+obj_list[1].update_probs_action("Call", 10, 10)
+obj_list[2].update_probs_action('Raise', 40, 10)
  
-print(decision_maker(obj_list, [[2, '1'], [2, '13']], [[4, '1'], [4, '3'], [4, '12']], 20, 80, 100))
+print(decision_maker(obj_list, [[2, '7'], [2, '8']], [[3, '12'], [1, '5'], [4, '6']], 40, 90, 100))
  
-obj_list[0].update_probs_action("Call", 87, 87)
-obj_list[1].update_probs_action("Fold", 0, 0)
-obj_list[2].update_probs_action('Fold', 0, 0)
+# obj_list[0].update_probs_action("Call", 186, 186)
+# obj_list[1].update_probs_action("Fold", 0, 186)
+# obj_list[2].update_probs_action('Raise', 372, 186)
  
-print(decision_maker(obj_list, [[2, '1'], [2, '13']], [[4, '1'], [4, '3'], [4, '12']], 87, 254, 100))
+# print(decision_maker(obj_list, [[2, '7'], [2, '8']], [[3, '12'], [2, '5'], [2, '6']], 372, 648, 100))
  
  
  
