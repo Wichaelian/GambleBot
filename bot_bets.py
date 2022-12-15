@@ -82,7 +82,7 @@ def flatten(l):
 
 
 def hand_probs(cards, com_cards):
-    acc = 10
+    acc = 1
     prob_vector = np.zeros(10)
 
     seen_cards = set([str(i[0]) + '_' + i[1] for i in (cards + com_cards)])

@@ -619,9 +619,10 @@ class GameEngine:
         """
         Main gameplay loop.
         """
-        print("game 2 loop")
-        self.deal_hands()
-        print("game2 dealt")
+        self.player_cards = [(None, None) for i in range(self.player_ct)]
+        self.bot_card = self.player_cards[0]
+        self.com_cards = []
+
         if self.round_in_play >= 1:
             self.hand_ct = 6
             for i in range(self.player_ct):
@@ -633,6 +634,8 @@ class GameEngine:
             self.curr_bet = self.big_blind
             self.moveleft_status = [True for i in range(self.player_ct)]
             self.prev_bet = self.big_blind
+        self.seen = set()
+        self.deal_hands()
 
         print("game 2 reset")
         self.preflop_play()
@@ -686,5 +689,12 @@ print(first_game.player_cards)
 print(first_game.seen)
 print("dealer", str(first_game.dealer))
 first_game.play()
+print("hand 1", str(first_game.player_cards))
 print("*******************game 2*************")
+first_game.play()
+print("hand 2", str(first_game.player_cards))
+
+print("************* game 3")
+print("hand 3", str(first_game.player_cards))
+print(first_game.player_cards)
 first_game.play()
