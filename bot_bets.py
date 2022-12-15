@@ -195,7 +195,7 @@ def calculate_bet(prob_dict_obj, cards, com_cards, curr_bet, pot, neighbors):
             decision = 'Raise'
             size = (2*curr_bet)/win_prob
 
-    return decision, size, (avg_score_percentile - hand_percentile)
+    return decision, size, (hand_percentile - avg_score_percentile)
 
 
 def decision_maker(dict_obj_list, my_cards, com_cards, curr_bet, pot, neighbors):
