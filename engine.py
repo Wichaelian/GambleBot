@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import typing as T
 from bot_bets import preflop_bet, calculate_bet
 from itertools import combinations
+import math
 
 
 def classify(hand) -> int:
@@ -97,6 +98,30 @@ def preflop_bet_bot(rank: int, curr_bet: float, pot: float) -> T.List:
     if (size >= 2*curr):
         return ['Raise', size]
     return ['Call', curr_bet]
+
+
+def postflop_bet_bot(bet_in_play: bool, rank: int, curr_bet: float, pot: float) -> T.List:
+    """
+    Postflop betting for the bot. Given an amount for the pot, the current bet, and
+    the rank of the hand, calculate whether to bet, call, raise, or check.
+
+    Parameters:
+    betinplay: if there is a bet currently in play
+    rank: hand rank
+    curr_bet: current bet in this round
+    pot: amount of money in the pot
+
+    Return:
+    List with [raise/call, amount to raise or call]
+    """
+    if not bet_in_play:
+        return ['Check', 0]
+    else:
+        curr = curr_bet
+        size = preflop_bet(rank, curr_bet, pot)
+        print("size: ", str(size))
+        if (size >= 2*curr):
+            return ['Raise', size]
 
 
 def in_game_bet(cards, com_cards, curr_bet, pot):
@@ -214,7 +239,6 @@ class GameEngine:
         Precondition:
         player must have at least amt money in its stack
         """
-        assert amt == self.curr_bet or amt >= 2*self.curr_bet
         assert self.player_stacks[player] >= amt
         self.player_stacks[player] -= amt
         self.pot += amt
@@ -269,31 +293,32 @@ class GameEngine:
         Parameters:
         i: rank of player hand that we're betting on
         """
-        num = np.random.uniform(0, 100, 1)
+
+        num = random.uniform(0, 100)
         if i == 1:
             if num <= 95:
-                raiseorcall = np.random.uniform(0, 100, 1)
+                raiseorcall = random.uniform(0, 100)
                 if raiseorcall <= 60:
                     return ['Raise', 2*self.curr_bet]
                 else:
                     return ['Call', self.curr_bet]
         elif i == 2:
             if num <= 75:
-                raiseorcall = np.random.uniform(0, 100, 1)
+                raiseorcall = random.uniform(0, 100)
                 if raiseorcall <= 60:
                     return ['Raise', 2*self.curr_bet]
                 else:
                     return ['Call', self.curr_bet]
         elif i == 3:
             if num <= 50:
-                raiseorcall = np.random.uniform(0, 100, 1)
+                raiseorcall = random.uniform(0, 100)
                 if raiseorcall <= 60:
                     return ['Raise', 2*self.curr_bet]
                 else:
                     return ['Call', self.curr_bet]
         elif i == 4:
             if num <= 20:
-                raiseorcall = np.random.uniform(0, 100, 1)
+                raiseorcall = random.uniform(0, 100)
                 if raiseorcall <= 60:
                     return ['Raise', 2*self.curr_bet]
                 else:
@@ -346,7 +371,8 @@ class GameEngine:
             else:
                 encode = str(max(c1, c2)) + '_' + str(min(c1, c2)) + 'o'
             print("hand encodes to ",  encode)
-            for i in range(1, position+1):
+            diff = abs(self.dealer - position)
+            for i in range(1, diff + 1):
                 options = self.pf_range[i]
                 if encode in options:
                     # SET BOT TO BE POSITION 0.
@@ -399,7 +425,7 @@ class GameEngine:
                 return False
         return True
 
-    def profile_postflop_bet(self, i: int) -> T.List:
+    def profile_postflop_bet(self, rank: int, bet_in_play: bool, i: int) -> T.List:
         """
         Preflop betting for non-AI players (only used during training phase)
         Logic:
@@ -411,40 +437,49 @@ class GameEngine:
         Parameters:
         i: rank of player hand that we're betting on
         """
-        num = np.random.uniform(0, 100, 1)
-        if i == 1:
-            if num <= 95:
-                betorcheck = np.random.uniform(0, 100, 1)
-                if betorcheck <= 90:
-                    bet_variation = np.random.uniform(0, 2, 1)
-                    return ['Bet', self.big_blind * (1 + bet_variation)]
+        num = random.uniform(0, 100)
+        if bet_in_play:
+            if rank == 0 or rank == 1:
+                if num <= 10:
+                    return ['Raise', 2 * self.curr_bet]
+                elif num <= 50:
+                    return ['Call', self.curr_bet]
                 else:
-                    return ['Check', 0]
-        elif i == 2:
-            if num <= 75:
-                betorcheck = np.random.uniform(0, 100, 1)
-                if betorcheck <= 60:
-                    bet_variation = np.random.uniform(0, 1, 1)
-                    return ['Bet', self.big_blind * (1 + bet_variation)]
+                    return ['Fold', 0]
+            elif rank == 2 or rank == 3:
+                if num <= 20:
+                    return ['Raise', 2 * self.curr_bet]
+                elif num <= 80:
+                    return ['Call', self.curr_bet]
                 else:
-                    return ['Check', 0]
-        elif i == 3:
-            if num <= 50:
-                betorcheck = np.random.uniform(0, 100, 1)
-                if betorcheck <= 30:
-                    bet_variation = np.random.uniform(0, 0.5, 1)
-                    return ['Bet', self.big_blind * (1 + bet_variation)]
+                    return ['Fold', 0]
+            else:
+                if num <= 50:
+                    return ['Raise', 2 * self.curr_bet]
                 else:
-                    return ['Check', 0]
-        elif i == 4:
-            if num <= 20:
-                betorcheck = np.random.uniform(0, 100, 1)
+                    return ['Call', self.curr_bet]
+        else:
+            betorcheck = np.random.uniform(0, 100)
+            if rank == 0 or rank == 1:
                 if betorcheck <= 15:
-                    bet_variation = np.random.uniform(0, 0.25, 1)
+                    bet_variation = random.uniform(0, 0.25)
                     return ['Bet', self.big_blind * (1 + bet_variation)]
                 else:
                     return ['Check', 0]
-        return ['Fold', 0]
+            elif rank == 2 or rank == 3:
+                if betorcheck <= 60:
+                    bet_variation = random.uniform(0, 1)
+                    return ['Bet', self.big_blind * (1 + bet_variation)]
+                else:
+                    return ['Check', 0]
+            else:
+                if num <= 95:
+                    if betorcheck <= 90:
+                        bet_variation = random.uniform(0, 2)
+                        return ['Bet', self.big_blind * (1 + bet_variation)]
+                    else:
+                        return ['Check', 0]
+        # return ['Fold', 0]
 
     def postflop_play(self) -> None:
         """
@@ -454,14 +489,18 @@ class GameEngine:
         print("****************PF")
         position = (self.dealer + 2) % self.player_ct
         bet_in_play = False
+        for i in range(self.player_ct):
+            if self.play_status[i]:
+                self.moveleft_status[i] = True
         while self.hand_ct > 1 and self.check_if_no_moves_left(self.moveleft_status) == False:
+
             print("STILL IN PLAY ARRAY IS ", str(self.play_status))
             print("MOVE LEFT ARRAY IS ", str(self.moveleft_status))
 
             print("dealer: ", str(self.dealer), "position: ", str(position))
 
             if position >= self.player_ct:
-                position = (self.dealer + 2) % self.player_ct
+                position = 0
 
             print(self.play_status)
 
@@ -473,59 +512,51 @@ class GameEngine:
                 position += 1
                 continue
 
-            hand = self.player_cards[position]
-            c1 = int(hand[0][1])
-            c2 = int(hand[1][1])
-            if hand[0][0] == hand[1][0]:
-                encode = str(max(c1, c2)) + '_' + str(min(c1, c2)) + 's'
+            rank = self.classify_player_best_hand(position)
+            decision = self.profile_postflop_bet(rank, bet_in_play, position)
+            print(str(decision))
+            if decision[0] == 'Bet':
+                bet_in_play = True
+                for i in range(self.player_ct):
+                    if self.play_status[i]:
+                        self.moveleft_status[i] = True
+                self.bet(position, decision[1])
+
+            elif decision[0] == 'Call':
+                self.bet(position, self.curr_bet)
+
+            elif decision[0] == 'Raise':
+                for i in range(self.player_ct):
+                    if self.play_status[i]:
+                        self.moveleft_status[i] = True
+                self.bet(position, decision[1])
             else:
-                encode = str(max(c1, c2)) + '_' + str(min(c1, c2)) + 'o'
-            print("hand encodes to ",  encode)
-            for i in range(1, position+1):
-                options = self.pf_range[i]
-                if encode in options:
-                    # FIX THIS BOT, CANNOT BE PREFLOP BET BOT
-                    if position == 0:
-                        print("Bot")
-                        decision = preflop_bet_bot(i, self.curr_bet, self.pot)
-                    else:
-                        if bet_in_play:
-                            decision = self.profile_preflop_bet(i)
-                        else:
-                            decision = self.profile_postflop_bet(i)
-                    print("decision: ", str(decision))
-                    if decision[0] == 'Bet':
-                        bet_in_play = True
-                        for i in range(self.player_ct):
-                            if self.play_status[i]:
-                                self.moveleft_status[i] = True
-                        self.bet(position, decision[1])
-
-                    elif decision[0] == 'Call':
-                        self.bet(position, self.curr_bet)
-
-                    elif decision[0] == 'Raise':
-                        for i in range(self.player_ct):
-                            if self.play_status[i]:
-                                self.moveleft_status[i] = True
-                        self.bet(position, decision[1])
-                    else:
-                        if bet_in_play == True:
-                            self.fold(position)
-                elif i == position:
-<<<<<<< HEAD
-                    if bet_in_play == True:
-                        self.fold(position)
-=======
-                    self.bet(position, self.curr_bet)
+                print("betinplay ", str(bet_in_play))
+                if bet_in_play == True:
                     self.fold(position)
->>>>>>> 1fccf9afc95586b9a467fe87fefd35218eb0ab26
             self.moveleft_status[position] = False
-
-            print("end_for")
+            print("moves left ", self.moveleft_status)
 
             print("loop end")
             position += 1
+        print("loop over -- 1 player", str(self.hand_ct))
+
+    def classify_player_best_hand(self, player: int) -> int:
+        """
+        For a given player, return the ranking of their best possible hand
+        using the revealed community cards and their cards.
+        """
+        res_max = -1
+        all_cards = self.com_cards + self.player_cards[player]
+        com_tuple = tuple(self.com_cards)
+        com_subsets = list(combinations(all_cards, 5))
+        if len(self.com_cards) > 4:
+            com_subsets.remove(com_tuple)
+        for quint in com_subsets:
+            res = classify(quint)
+            if res > res_max:
+                res_max = res
+        return res_max
 
     def game_end(self) -> int:
         """
@@ -534,27 +565,15 @@ class GameEngine:
         scores = [-1 for i in range(self.player_ct)]
         max_score = -1
         winner = -1
-        winning_hands = [[] for i in range(self.player_ct)]
         for i in range(self.player_ct):
             if self.play_status[i]:
-                res_max = -1
-                all_cards = self.com_cards + self.player_cards[i]
-                com_tuple = (self.com_cards[0], self.com_cards[1],
-                             self.com_cards[2], self.com_cards[3], self.com_cards[4])
-                com_subsets = list(combinations(all_cards, 5))
-                com_subsets.remove(com_tuple)
-                for quint in com_subsets:
-                    res = classify(quint)
-                    if res > res_max:
-                        res_max = res
-                        winning_hands[i] = quint
+                res_max = self.classify_player_best_hand(i)
                 scores[i] = res_max
                 if res_max > max_score:
                     max_score = res_max
                     winner = i
-        print(winning_hands)
         print(scores)
-        print(winner)
+        print("WINNER IS ", winner)
 
     def play(self) -> None:
         """
@@ -562,13 +581,22 @@ class GameEngine:
         """
         print(self.com_cards)
         self.preflop_play()
+        if self.hand_ct == 1:
+            return
         print(self.play_status)
         self.postflop_play()
+        if self.hand_ct == 1:
+            return
+        print(self.play_status)
         self.flop(1)
         self.postflop_play()
+        if self.hand_ct == 1:
+            return
         self.flop(1)
         self.postflop_play()
-        print(self.com_cards)
+        if self.hand_ct == 1:
+            return
+        print("status ", str(self.play_status))
         self.game_end()
 
 
