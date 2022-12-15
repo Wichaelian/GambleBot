@@ -172,7 +172,7 @@ def calculate_bet(prob_dict_obj, cards, com_cards, curr_bet, pot, neighbors):
    if win_prob < pot_odds:
        decision = 'Fold'
        size = 0
-   elif win_prob > min(0.7, pot_odds + 0.2):
+   elif win_prob > min(0.7, pot_odds + 0.2 + prob_dict_obj.adjust):
        decision = 'Raise'
        size = (2*curr_bet) + pot
    else:
@@ -205,209 +205,229 @@ def decision_maker(dict_obj_list, my_cards, com_cards, curr_bet, pot, neighbors)
  
 class prob_dictionary:
  
-   def __init__(self, my_cards, known_cards):
+    def __init__(self, my_cards, known_cards, action_ct, raise_scale, risk_adjust):
  
-       self.known_cards = known_cards
-       deck = set()
-       for suit in range(1, 5):
-           for rank in range(1, 14):
-               deck.add(str(suit) + "_" + str(rank))
-       deck = deck - set([str(i[0]) + '_' + i[1] for i in (my_cards + known_cards)])
+        self.known_cards = known_cards
+        deck = set()
+        for suit in range(1, 5):
+            for rank in range(1, 14):
+                deck.add(str(suit) + "_" + str(rank))
+        deck = deck - set([str(i[0]) + '_' + i[1] for i in (my_cards + known_cards)])
+        
+        probs_hrcf = {}
+        hands_list = sorted(list(itertools.combinations(deck, 2)))
+        hands_ct = len(hands_list)
+    
+        prob_sum = 0
+        raise_sum = 0
+        call_sum = 0
+        fold_sum = 0
+    
+        scores = []
+        self.score_dict = {}
+        hand_prob_dict = {}       
+    
+        for hand in hands_list:
+    
+            hand_score_format = [[int(card[0]), (card[2:])] for card in hand]
+            hand_score = score(hand_score_format, known_cards)
+            self.score_dict[hand] = hand_score
+            scores.append(hand_score)
+        
+        scores_percentiles = [stats.percentileofscore(scores, s, 'weak') for s in scores]
+    
+        for index, hand in enumerate(hands_list):
+            
+            hand_prob = 100/hands_ct
+            hand_prob_dict[hand] = hand_prob
+            prob_sum += 100
+    
+            hand_percentile = scores_percentiles[index]
+            raise_prob = hand_percentile
+            raise_sum += raise_prob
+    
+            
+            call_prob = (100 - hand_percentile) * (hand_percentile / 100)
+            call_sum += call_prob
+            
+            fold_prob = 100 - (raise_prob + call_prob)
+            fold_sum += fold_prob
+            
+            probs_hrcf[hand] = [hand_prob, raise_prob, call_prob, fold_prob]
+        
+        self.prob_dict = probs_hrcf
+        self.hand_prob_dict = dict(sorted(hand_prob_dict.items()))
+        self.score_list = scores
+    
+        self.prob_sum = prob_sum
+        self.raise_sum = raise_sum
+        self.call_sum = call_sum
+        self.fold_sum = fold_sum
+    
+        self.prob_raise = self.raise_sum/self.prob_sum
+        self.prob_call = self.call_sum/self.prob_sum
+        self.prob_fold = self.fold_sum/self.prob_sum
+
+        self.action_ct = action_ct
+        self.raise_scale = raise_scale
+        self.adjust = risk_adjust
+    
+    
+    def update_probs_action(self, action, curr_bet, prev_bet):
+        prob_dictionary = self.prob_dict
+        action_map = {'Raise': 1, 'Call': 2, 'Fold': 3}
+        action_code = action_map[action]
+        self.action_ct[action_code - 1] += 1
+    
+        for hand, prob_list in prob_dictionary.items():
+            hand_prob = prob_list[0]
+            
+            r_prob = prob_list[1]
+            c_prob = prob_list[2]
+            f_prob = prob_list[3]
+    
+            if action_code == 1:
+                hand_prob_given_action = min(1, self.raise_scale*(curr_bet/prev_bet) * (r_prob * hand_prob) / (self.prob_raise * 200))
+                self.hand_prob_dict[hand] = hand_prob_given_action
+                if hand_prob_given_action == 0:
+                    raise_prob_given_hand == r_prob
+                else:
+                    raise_prob_given_hand = (hand_prob * r_prob) / hand_prob_given_action
+    
+                remainder = 100 - raise_prob_given_hand
+                other_prob_sum = c_prob + f_prob
+                if other_prob_sum == 0:
+                    call_prob_given_hand = 0
+                    fold_prob_given_hand = 0
+                else:
+                    call_prob_given_hand = (c_prob * remainder) / other_prob_sum
+                    fold_prob_given_hand = (f_prob * remainder) / other_prob_sum
+                
+    
+                self.prob_sum += 100 * (hand_prob_given_action - hand_prob)
+                self.raise_sum += (raise_prob_given_hand - r_prob)
+                self.call_sum += (call_prob_given_hand - c_prob)
+                self.fold_sum += (fold_prob_given_hand - f_prob)
+                self.prob_raise = self.raise_sum/self.prob_sum
+                self.prob_call = self.call_sum/self.prob_sum
+                self.prob_fold = self.fold_sum/self.prob_sum
+    
+            elif action_code == 2:
+                hand_prob_given_action = (c_prob * hand_prob) / (self.prob_call * 100)
+                self.hand_prob_dict[hand] = hand_prob_given_action
+                if hand_prob_given_action == 0:
+                    call_prob_given_hand == c_prob
+                else:
+                    call_prob_given_hand = (hand_prob * c_prob) / hand_prob_given_action
+                
+                remainder = 100 - call_prob_given_hand
+                other_prob_sum = r_prob + f_prob
+                if other_prob_sum == 0:
+                    raise_prob_given_hand = 0
+                    fold_prob_given_hand = 0
+                else:
+                    raise_prob_given_hand = (r_prob * remainder) / other_prob_sum
+                    fold_prob_given_hand = (f_prob * remainder) / other_prob_sum
+    
+                self.prob_sum += (hand_prob_given_action - hand_prob)
+                self.raise_sum += (raise_prob_given_hand - r_prob)
+                self.fold_sum += (fold_prob_given_hand - c_prob)
+                self.fold_sum += (fold_prob_given_hand - f_prob)
+                self.prob_raise = self.raise_sum/self.prob_sum
+                self.prob_call = self.call_sum/self.prob_sum
+                self.prob_fold = self.fold_sum/self.prob_sum
+    
+            elif action_code == 3:
+                hand_prob_given_action = (f_prob * hand_prob) / (self.prob_fold * 100)
+                self.hand_prob_dict[hand] = hand_prob_given_action
+                if hand_prob_given_action == 0:
+                    fold_prob_given_hand == f_prob
+                else:
+                    fold_prob_given_hand = (hand_prob * f_prob) / hand_prob_given_action
+    
+                remainder = 100 - fold_prob_given_hand
+                other_prob_sum = r_prob + c_prob
+                if other_prob_sum == 0:
+                    raise_prob_given_hand = 0
+                    call_prob_given_hand = 0
+                else:
+                    raise_prob_given_hand = (r_prob * remainder) / other_prob_sum
+                    call_prob_given_hand = (c_prob * remainder) / other_prob_sum
+                
+                self.prob_sum += (hand_prob_given_action - hand_prob)
+                self.raise_sum += (raise_prob_given_hand - r_prob)
+                self.call_sum += (call_prob_given_hand - c_prob)
+                self.fold_sum += (fold_prob_given_hand - f_prob)
+                self.prob_raise = self.raise_sum/self.prob_sum
+                self.prob_call = self.call_sum/self.prob_sum
+                self.prob_fold = self.fold_sum/self.prob_sum
+    
+            prob_dictionary[hand] = [hand_prob_given_action, raise_prob_given_hand, call_prob_given_hand, fold_prob_given_hand]
+        
+        self.prob_dict = prob_dictionary
+        self.hand_prob_dict = dict(sorted(self.hand_prob_dict.items()))
+        
+ 
+    def update_probs_ncard(self, card):
+        self.known_cards.append(card)
+        if len(self.known_cards == 7):
+            return
+        prob_dictionary = self.prob_dict
+        hand_prob_dict = self.hand_prob_dict
+        new_overall = {}
+        new_hand_probs = {}
+        new_score_dict = {}
+        for hand, prob_list in prob_dictionary.items():
+            if card in hand:
+                self.prob_sum -= prob_list[0]
+                self.raise_sum -= prob_list[1]
+                self.call_sum -= prob_list[2]
+                self.fold_sum -= prob_list[3]
+    
+                self.prob_raise = self.raise_sum/self.prob_sum
+                self.prob_call = self.call_sum/self.prob_sum
+                self.prob_fold = self.fold_sum/self.prob_sum
+    
+            else:
+                new_overall[hand] = prob_list
+                new_hand_probs[hand] = prob_list[0]
+                hand_score_format = [[int(card[0]), (card[2:])] for card in hand]
+                hand_score = score(hand_score_format, self.known_cards)
+                new_score_dict[hand] = hand_score
+ 
       
-       probs_hrcf = {}
-       hands_list = sorted(list(itertools.combinations(deck, 2)))
-       hands_ct = len(hands_list)
- 
-       prob_sum = 0
-       raise_sum = 0
-       call_sum = 0
-       fold_sum = 0
- 
-       scores = []
-       self.score_dict = {}
-       hand_prob_dict = {}       
- 
-       for hand in hands_list:
- 
-           hand_score_format = [[int(card[0]), (card[2:])] for card in hand]
-           hand_score = score(hand_score_format, known_cards)
-           self.score_dict[hand] = hand_score
-           scores.append(hand_score)
-      
-       scores_percentiles = [stats.percentileofscore(scores, s, 'weak') for s in scores]
- 
-       for index, hand in enumerate(hands_list):
-          
-           hand_prob = 100/hands_ct
-           hand_prob_dict[hand] = hand_prob
-           prob_sum += 100
- 
-           hand_percentile = scores_percentiles[index]
-           raise_prob = hand_percentile
-           raise_sum += raise_prob
- 
-          
-           call_prob = (100 - hand_percentile) * (hand_percentile / 100)
-           call_sum += call_prob
-          
-           fold_prob = 100 - (raise_prob + call_prob)
-           fold_sum += fold_prob
-          
-           probs_hrcf[hand] = [hand_prob, raise_prob, call_prob, fold_prob]
-      
-       self.prob_dict = probs_hrcf
-       self.hand_prob_dict = dict(sorted(hand_prob_dict.items()))
-       self.score_list = scores
- 
-       self.prob_sum = prob_sum
-       self.raise_sum = raise_sum
-       self.call_sum = call_sum
-       self.fold_sum = fold_sum
- 
-       self.prob_raise = self.raise_sum/self.prob_sum
-       self.prob_call = self.call_sum/self.prob_sum
-       self.prob_fold = self.fold_sum/self.prob_sum
- 
-  
-   def update_probs_action(self, action, curr_bet, prev_bet):
-       prob_dictionary = self.prob_dict
-       action_map = {'Raise': 1, 'Call': 2, 'Fold': 3}
-       action_code = action_map[action]
- 
-       for hand, prob_list in prob_dictionary.items():
-           hand_prob = prob_list[0]
-          
-           r_prob = prob_list[1]
-           c_prob = prob_list[2]
-           f_prob = prob_list[3]
- 
-           if action_code == 1:
-               hand_prob_given_action = min(1, (curr_bet/prev_bet) * (r_prob * hand_prob) / (self.prob_raise * 200))
-               self.hand_prob_dict[hand] = hand_prob_given_action
-               if hand_prob_given_action == 0:
-                   raise_prob_given_hand == r_prob
-               else:
-                   raise_prob_given_hand = (hand_prob * r_prob) / hand_prob_given_action
- 
-               remainder = 100 - raise_prob_given_hand
-               other_prob_sum = c_prob + f_prob
-               if other_prob_sum == 0:
-                   call_prob_given_hand = 0
-                   fold_prob_given_hand = 0
-               else:
-                   call_prob_given_hand = (c_prob * remainder) / other_prob_sum
-                   fold_prob_given_hand = (f_prob * remainder) / other_prob_sum
-              
- 
-               self.prob_sum += 100 * (hand_prob_given_action - hand_prob)
-               self.raise_sum += (raise_prob_given_hand - r_prob)
-               self.call_sum += (call_prob_given_hand - c_prob)
-               self.fold_sum += (fold_prob_given_hand - f_prob)
-               self.prob_raise = self.raise_sum/self.prob_sum
-               self.prob_call = self.call_sum/self.prob_sum
-               self.prob_fold = self.fold_sum/self.prob_sum
- 
-           elif action_code == 2:
-               hand_prob_given_action = (c_prob * hand_prob) / (self.prob_call * 100)
-               self.hand_prob_dict[hand] = hand_prob_given_action
-               if hand_prob_given_action == 0:
-                   call_prob_given_hand == c_prob
-               else:
-                   call_prob_given_hand = (hand_prob * c_prob) / hand_prob_given_action
-              
-               remainder = 100 - call_prob_given_hand
-               other_prob_sum = r_prob + f_prob
-               if other_prob_sum == 0:
-                   raise_prob_given_hand = 0
-                   fold_prob_given_hand = 0
-               else:
-                   raise_prob_given_hand = (r_prob * remainder) / other_prob_sum
-                   fold_prob_given_hand = (f_prob * remainder) / other_prob_sum
- 
-               self.prob_sum += (hand_prob_given_action - hand_prob)
-               self.raise_sum += (raise_prob_given_hand - r_prob)
-               self.fold_sum += (fold_prob_given_hand - c_prob)
-               self.fold_sum += (fold_prob_given_hand - f_prob)
-               self.prob_raise = self.raise_sum/self.prob_sum
-               self.prob_call = self.call_sum/self.prob_sum
-               self.prob_fold = self.fold_sum/self.prob_sum
- 
-           elif action_code == 3:
-               hand_prob_given_action = (f_prob * hand_prob) / (self.prob_fold * 100)
-               self.hand_prob_dict[hand] = hand_prob_given_action
-               if hand_prob_given_action == 0:
-                   fold_prob_given_hand == f_prob
-               else:
-                   fold_prob_given_hand = (hand_prob * f_prob) / hand_prob_given_action
- 
-               remainder = 100 - fold_prob_given_hand
-               other_prob_sum = r_prob + c_prob
-               if other_prob_sum == 0:
-                   raise_prob_given_hand = 0
-                   call_prob_given_hand = 0
-               else:
-                   raise_prob_given_hand = (r_prob * remainder) / other_prob_sum
-                   call_prob_given_hand = (c_prob * remainder) / other_prob_sum
-              
-               self.prob_sum += (hand_prob_given_action - hand_prob)
-               self.raise_sum += (raise_prob_given_hand - r_prob)
-               self.call_sum += (call_prob_given_hand - c_prob)
-               self.fold_sum += (fold_prob_given_hand - f_prob)
-               self.prob_raise = self.raise_sum/self.prob_sum
-               self.prob_call = self.call_sum/self.prob_sum
-               self.prob_fold = self.fold_sum/self.prob_sum
-  
-           prob_dictionary[hand] = [hand_prob_given_action, raise_prob_given_hand, call_prob_given_hand, fold_prob_given_hand]
-      
-       self.prob_dict = prob_dictionary
-       self.hand_prob_dict = dict(sorted(self.hand_prob_dict.items()))
-      
- 
-   def update_probs_ncard(self, card):
-       self.known_cards.append(card)
-       if len(self.known_cards == 7):
-        return
-       prob_dictionary = self.prob_dict
-       hand_prob_dict = self.hand_prob_dict
-       new_overall = {}
-       new_hand_probs = {}
-       new_score_dict = {}
-       for hand, prob_list in prob_dictionary.items():
-           if card in hand:
-               self.prob_sum -= prob_list[0]
-               self.raise_sum -= prob_list[1]
-               self.call_sum -= prob_list[2]
-               self.fold_sum -= prob_list[3]
- 
-               self.prob_raise = self.raise_sum/self.prob_sum
-               self.prob_call = self.call_sum/self.prob_sum
-               self.prob_fold = self.fold_sum/self.prob_sum
- 
-           else:
-               new_overall[hand] = prob_list
-               new_hand_probs[hand] = prob_list[0]
-               hand_score_format = [[int(card[0]), (card[2:])] for card in hand]
-               hand_score = score(hand_score_format, self.known_cards)
-               new_score_dict[hand] = hand_score
- 
-      
-       self.prob_dict = new_overall
-       self.hand_prob_dict = dict(sorted(new_hand_probs.items()))
-       self.score_dict = new_score_dict
-       self.score_array = np.array([val for _, val in self.score_dict])
- 
+        self.prob_dict = new_overall
+        self.hand_prob_dict = dict(sorted(new_hand_probs.items()))
+        self.score_dict = new_score_dict
+        self.score_array = np.array([val for _, val in self.score_dict])
+
+    def update_winner(self):
+        actions_this_round = self.action_ct
+        self.raise_scale -= ((actions_this_round[0] * 0.02) + (actions_this_round[1] * 0.01))
+        self.adjust += 0.02
+
+    def update_loser(self):
+        actions_this_round = self.action_ct
+        self.raise_scale += ((actions_this_round[0] * 0.02) + (actions_this_round[1] * 0.01))
+        self.adjust -= 0.01
+
+    # def round_complete(self):
+    #     return self.raise_scale, self.adjust
+
+
+
  
  
 opp_ct = 3
 obj_list = []
 for opp in range(opp_ct):
-   obj_list.append(prob_dictionary([[2, '7'], [2, '8']], [[3, '12'], [1, '5'], [4, '6']]))
+   obj_list.append(prob_dictionary([[2, '7'], [2, '8']], [[3, '12'], [1, '5'], [4, '6']], np.array([0, 0, 0]), 1, 0))
  
-obj_list[0].update_probs_action("Call", 10, 10)
-obj_list[1].update_probs_action("Call", 10, 10)
-obj_list[2].update_probs_action('Raise', 40, 10)
+obj_list[0].update_probs_action("Call", 0, 0)
+obj_list[1].update_probs_action("Call", 0, 0)
+obj_list[2].update_probs_action('Call', 0, 0)
  
-print(decision_maker(obj_list, [[2, '7'], [2, '8']], [[3, '12'], [1, '5'], [4, '6']], 40, 90, 100))
+print(decision_maker(obj_list, [[2, '7'], [2, '8']], [[3, '12'], [1, '5'], [4, '6']], 5, 40, 100))
  
 # obj_list[0].update_probs_action("Call", 186, 186)
 # obj_list[1].update_probs_action("Fold", 0, 186)
