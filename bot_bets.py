@@ -288,6 +288,7 @@ class prob_dictionary:
         self.adjust = risk_adjust
 
     def update_probs_action(self, action, curr_bet, prev_bet):
+        self.prob_raise = max(0.001, self.prob_raise)
         prob_dictionary = self.prob_dict
         action_map = {'Raise': 1, 'Call': 2, 'Fold': 3}
         action_code = action_map[action]
