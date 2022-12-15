@@ -259,7 +259,7 @@ class GameEngine:
         self.pot += amt
         self.curr_bet = amt
         if postflop:
-            self.prob_matrices[player].update_probs_action(
+            self.prob_matrices[player-1].update_probs_action(
                 "Raise", amt, self.prev_amt)
             self.prev_amt = amt
 
@@ -273,7 +273,7 @@ class GameEngine:
         assert player in range(self.player_ct)
         self.bet(player, amt=self.curr_bet)
         if postflop:
-            self.prob_matrices[player].update_probs_action(
+            self.prob_matrices[player-1].update_probs_action(
                 "Call", self.curr_bet, self.prev_amt)
             self.prev_amt = self.curr_bet
 
@@ -532,6 +532,8 @@ class GameEngine:
             print(self.play_status)
 
             if self.player_stacks[position] == 0:
+                print("DIS PLAYA BROKE ASF: ", position)
+                self.moveleft_status[position] = False
                 position += 1
                 continue
 
@@ -611,7 +613,8 @@ class GameEngine:
                     max_score = res_max
                     winner = i
             else:
-                self.action_statuses[i] = self.prob_matrices[i].update_loser()
+                if i != 0:
+                    self.prob_matrices[i-1].update_loser()
 
         self.player_stacks[winner] += self.pot
         print(scores)
@@ -621,7 +624,8 @@ class GameEngine:
         else:
             d_avg_aggregate = 0
 
-        self.action_statuses[i] = self.prob_matrices[winner].update_winner()
+        if i != 0:
+            self.prob_matrices[i-1].update_winner()
         self.round_in_play += 1
         
         return d_avg_aggregate, winner
@@ -630,9 +634,10 @@ class GameEngine:
         """
         Main gameplay loop.
         """
-        print("game 2 loop")
-        self.deal_hands()
-        print("game2 dealt")
+        self.player_cards = [(None, None) for i in range(self.player_ct)]
+        self.bot_card = self.player_cards[0]
+        self.com_cards = []
+
         if self.round_in_play >= 1:
             self.hand_ct = 6
             for i in range(self.player_ct):
@@ -640,10 +645,12 @@ class GameEngine:
                     self.player_stacks[i] = self.buy_in
                     self.pot += self.buy_in
                     self.play_status[i] = True
-            self.prob_matrices = []
             self.dealer = (self.dealer + 1) % self.player_ct
             self.curr_bet = self.big_blind
+            self.moveleft_status = [True for i in range(self.player_ct)]
             self.prev_bet = self.big_blind
+        self.seen = set()
+        self.deal_hands()
 
         print("game 2 reset")
 
@@ -651,16 +658,23 @@ class GameEngine:
 
         self.preflop_play()
         if self.hand_ct == 1:
+            self.round_in_play += 1
             return
 
-        for i in range(self.player_ct):
-            if self.round_in_play >= 1:
-                a, e = self.action_statuses[i]
-                self.prob_matrices.append(prob_dictionary(
-                    self.player_cards[i].copy(), self.com_cards.copy(), np.array([0, 0, 0]), raise_scale=a, risk_adjust=e))
-            else:
+        if self.round_in_play == 0:
+            for i in range(0, self.player_ct-1):
                 self.prob_matrices.append(prob_dictionary(
                     self.player_cards[i].copy(), self.com_cards.copy(), np.array([0, 0, 0])))
+
+        if self.round_in_play >= 1:
+            new_mat = []
+            for i in range(0, self.player_ct-1):
+                a, e = self.prob_matrices[i].raise_scale, self.prob_matrices[i].adjust
+
+                new_mat.append(prob_dictionary(
+                    self.player_cards[i].copy(), self.com_cards.copy(), np.array([0, 0, 0]), raise_scale=a, risk_adjust=e))
+            self.prob_matrices = new_mat
+
 
         round_count = 0
 
@@ -668,24 +682,27 @@ class GameEngine:
             round_count += 1
         self.postflop_play()      
         if self.hand_ct == 1:
+            self.round_in_play += 1
             return
 
         n_card = self.flop(1)
-        for i in range(self.player_ct):
-            self.prob_matrices[i].update_probs_ncard(n_card[0].copy())
+        for i in range(0, self.player_ct - 1):
+            self.prob_matrices[i-1].update_probs_ncard(n_card[0].copy())
         if self.play_status[0]:
             round_count += 1
         self.postflop_play()
         if self.hand_ct == 1:
+            self.round_in_play += 1
             return
 
         n_card_2 = self.flop(1)
-        for i in range(self.player_ct):
-            self.prob_matrices[i].update_probs_ncard(n_card_2[0].copy())
+        for i in range(0, self.player_ct-1):
+            self.prob_matrices[i-1].update_probs_ncard(n_card_2[0].copy())
         if self.play_status[0]:
             round_count += 1
         self.postflop_play()
         if self.hand_ct == 1:
+            self.round_in_play += 1
             return
         print("status ", str(self.play_status))
         
@@ -716,6 +733,17 @@ print(first_game.player_stacks)
 print(first_game.player_cards)
 print(first_game.seen)
 print("dealer", str(first_game.dealer))
-first_game.play()
-print("*******************game 2*************")
-first_game.play()
+# first_game.play()
+# print("hand 1", str(first_game.player_cards))
+# print("*******************game 2*************")
+# first_game.play()
+# print("hand 2", str(first_game.player_cards))
+
+# print("************* game 3")
+# print("hand 3", str(first_game.player_cards))
+# print(first_game.player_cards)
+# first_game.play()
+for i in range(0, 10):
+    print("GAME ", i)
+    first_game.play()
+

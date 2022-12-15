@@ -82,7 +82,7 @@ def flatten(l):
 
 
 def hand_probs(cards, com_cards):
-    acc = 10
+    acc = 5
     prob_vector = np.zeros(10)
 
     seen_cards = set([str(i[0]) + '_' + i[1] for i in (cards + com_cards)])
@@ -289,6 +289,7 @@ class prob_dictionary:
         self.adjust = risk_adjust
 
     def update_probs_action(self, action, curr_bet, prev_bet):
+        self.prob_raise = max(0.001, self.prob_raise)
         prob_dictionary = self.prob_dict
         action_map = {'Raise': 1, 'Call': 2, 'Fold': 3}
         action_code = action_map[action]
