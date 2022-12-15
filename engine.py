@@ -675,8 +675,6 @@ class GameEngine:
 
         if self.round_in_play == 0:
             for i in range(0, self.player_ct-1):
-        if self.round_in_play == 0:
-            for i in range(0, self.player_ct-1):
                 self.prob_matrices.append(prob_dictionary(
                     self.player_cards[i].copy(), self.com_cards.copy(), np.array([0, 0, 0])))
 
