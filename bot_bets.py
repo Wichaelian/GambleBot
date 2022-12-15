@@ -183,7 +183,7 @@ def calculate_bet(prob_dict_obj, cards, com_cards, curr_bet, pot, neighbors):
     if win_prob < pot_odds:
         decision = 'Fold'
         size = 0
-    elif win_prob > min(0.7, pot_odds + 0.2):
+    elif win_prob > min(0.7, pot_odds + 0.2 + prob_dict_obj.adjust):
         decision = 'Raise'
         size = (2*curr_bet) + pot
     else:
@@ -219,7 +219,7 @@ def decision_maker(dict_obj_list, my_cards, com_cards, curr_bet, pot, neighbors)
 
 class prob_dictionary:
 
-    def __init__(self, my_cards, known_cards):
+    def __init__(self, my_cards, known_cards, action_ct, raise_scale, risk_adjust):
 
         self.known_cards = known_cards
         deck = set()
@@ -283,10 +283,15 @@ class prob_dictionary:
         self.prob_call = self.call_sum/self.prob_sum
         self.prob_fold = self.fold_sum/self.prob_sum
 
+        self.action_ct = action_ct
+        self.raise_scale = raise_scale
+        self.adjust = risk_adjust
+
     def update_probs_action(self, action, curr_bet, prev_bet):
         prob_dictionary = self.prob_dict
         action_map = {'Raise': 1, 'Call': 2, 'Fold': 3}
         action_code = action_map[action]
+        self.action_ct[action_code - 1] += 1
 
         for hand, prob_list in prob_dictionary.items():
             hand_prob = prob_list[0]
@@ -297,10 +302,10 @@ class prob_dictionary:
 
             if action_code == 1:
                 hand_prob_given_action = min(
-                    1, (curr_bet/prev_bet) * (r_prob * hand_prob) / (self.prob_raise * 200))
+                    1, self.raise_scale*(curr_bet/prev_bet) * (r_prob * hand_prob) / (self.prob_raise * 200))
                 self.hand_prob_dict[hand] = hand_prob_given_action
                 if hand_prob_given_action == 0:
-                    raise_prob_given_hand = r_prob
+                    raise_prob_given_hand == r_prob
                 else:
                     raise_prob_given_hand = (
                         hand_prob * r_prob) / hand_prob_given_action
@@ -329,7 +334,7 @@ class prob_dictionary:
                     c_prob * hand_prob) / (self.prob_call * 100)
                 self.hand_prob_dict[hand] = hand_prob_given_action
                 if hand_prob_given_action == 0:
-                    call_prob_given_hand = c_prob
+                    call_prob_given_hand == c_prob
                 else:
                     call_prob_given_hand = (
                         hand_prob * c_prob) / hand_prob_given_action
@@ -358,7 +363,7 @@ class prob_dictionary:
                     f_prob * hand_prob) / (self.prob_fold * 100)
                 self.hand_prob_dict[hand] = hand_prob_given_action
                 if hand_prob_given_action == 0:
-                    fold_prob_given_hand = f_prob
+                    fold_prob_given_hand == f_prob
                 else:
                     fold_prob_given_hand = (
                         hand_prob * f_prob) / hand_prob_given_action
@@ -390,7 +395,7 @@ class prob_dictionary:
 
     def update_probs_ncard(self, card):
         self.known_cards.append(card)
-        if len(self.known_cards) == 7:
+        if len(self.known_cards == 7):
             return
         prob_dictionary = self.prob_dict
         hand_prob_dict = self.hand_prob_dict
@@ -421,19 +426,34 @@ class prob_dictionary:
         self.score_dict = new_score_dict
         self.score_array = np.array([val for _, val in self.score_dict])
 
+    def update_winner(self):
+        actions_this_round = self.action_ct
+        self.raise_scale -= ((actions_this_round[0]
+                             * 0.02) + (actions_this_round[1] * 0.01))
+        self.adjust += 0.02
+
+    def update_loser(self):
+        actions_this_round = self.action_ct
+        self.raise_scale += ((actions_this_round[0]
+                             * 0.02) + (actions_this_round[1] * 0.01))
+        self.adjust -= 0.01
+
+    # def round_complete(self):
+    #     return self.raise_scale, self.adjust
+
 
 opp_ct = 3
 obj_list = []
 for opp in range(opp_ct):
-    obj_list.append(prob_dictionary(
-        [[2, '7'], [2, '8']], [[3, '12'], [1, '5'], [4, '6']]))
+    obj_list.append(prob_dictionary([[2, '7'], [2, '8']], [
+                    [3, '12'], [1, '5'], [4, '6']], np.array([0, 0, 0]), 1, 0))
 
-obj_list[0].update_probs_action("Call", 10, 10)
-obj_list[1].update_probs_action("Call", 10, 10)
-obj_list[2].update_probs_action('Raise', 40, 10)
+obj_list[0].update_probs_action("Call", 0, 0)
+obj_list[1].update_probs_action("Call", 0, 0)
+obj_list[2].update_probs_action('Call', 0, 0)
 
 print(decision_maker(obj_list, [[2, '7'], [2, '8']], [
-      [3, '12'], [1, '5'], [4, '6']], 40, 90, 100))
+      [3, '12'], [1, '5'], [4, '6']], 5, 40, 100))
 
 # obj_list[0].update_probs_action("Call", 186, 186)
 # obj_list[1].update_probs_action("Fold", 0, 186)
