@@ -82,7 +82,7 @@ def flatten(l):
 
 
 def hand_probs(cards, com_cards):
-    acc = 1
+    acc = 5
     prob_vector = np.zeros(10)
 
     seen_cards = set([str(i[0]) + '_' + i[1] for i in (cards + com_cards)])
@@ -162,7 +162,6 @@ def score(cards, com_cards):
 
     return score
 
-
 def calculate_bet(prob_dict_obj, cards, com_cards, curr_bet, pot, neighbors):
     pot_odds = curr_bet/(curr_bet + pot)
     hand_score = score(cards, com_cards)
@@ -196,26 +195,28 @@ def calculate_bet(prob_dict_obj, cards, com_cards, curr_bet, pot, neighbors):
             decision = 'Raise'
             size = (2*curr_bet)/win_prob
 
-    return decision, size
+    return decision, size, (avg_score_percentile - hand_percentile)
 
 
 def decision_maker(dict_obj_list, my_cards, com_cards, curr_bet, pot, neighbors):
     decision_dict = {'Raise': 0, 'Call': 0, 'Fold': 0}
     size_avg = 0
+    diff_avg = 0
     players = len(dict_obj_list)
     for obj in dict_obj_list:
-        decision, size = calculate_bet(
+        decision, size, differential = calculate_bet(
             obj, my_cards, obj.known_cards, curr_bet, pot, neighbors)
         decision_dict[decision] += 1
         size_avg += size/players
+        diff_avg += differential/players
 
     ultimate_decision = max(decision_dict, key=decision_dict.get)
     if ultimate_decision == 'Raise':
-        return ['Raise', max(2*curr_bet, size_avg)]
+        return ['Raise', max(2*curr_bet, size_avg), diff_avg]
     if ultimate_decision == 'Call':
-        return ['Call', curr_bet]
+        return ['Call', curr_bet, diff_avg]
     else:
-        return ['Fold', 0]
+        return ['Fold', 0, diff_avg]
 
 
 class prob_dictionary:
