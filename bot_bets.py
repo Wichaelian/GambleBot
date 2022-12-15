@@ -155,8 +155,8 @@ def score(cards, com_cards):
     hands = np.array([2**i for i in range(10)])
 
     one_dex = np.where(probs == 1)[0]
-    sub_probs = probs[one_dex[0]:]
-    sub_hands = hands[one_dex[0]:]
+    sub_probs = probs[one_dex[-1]:]
+    sub_hands = hands[one_dex[-1]:]
     score = np.average(hands, weights=probs)
 
     return score
