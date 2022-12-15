@@ -629,26 +629,34 @@ class GameEngine:
                     self.player_stacks[i] = self.buy_in
                     self.pot += self.buy_in
                     self.play_status[i] = True
-            self.prob_matrices = []
             self.dealer = (self.dealer + 1) % self.player_ct
             self.curr_bet = self.big_blind
+            self.moveleft_status = [True for i in range(self.player_ct)]
             self.prev_bet = self.big_blind
 
         print("game 2 reset")
         self.preflop_play()
         if self.hand_ct == 1:
+            self.round_in_play += 1
             return
 
-        for i in range(self.player_ct):
-            if self.round_in_play >= 1:
-                a, e = self.action_statuses[i]
-                self.prob_matrices.append(prob_dictionary(
-                    self.player_cards[i].copy(), self.com_cards.copy(), np.array([0, 0, 0]), raise_scale=a, risk_adjust=e))
-            else:
+        if self.round_in_play == 0:
+            for i in range(self.player_ct):
                 self.prob_matrices.append(prob_dictionary(
                     self.player_cards[i].copy(), self.com_cards.copy(), np.array([0, 0, 0])))
+
+        if self.round_in_play >= 1:
+            new_mat = []
+            for i in range(self.player_ct):
+                a, e = self.prob_matrices[i].raise_scale, self.prob_matrices[i].adjust
+
+                new_mat.append(prob_dictionary(
+                    self.player_cards[i].copy(), self.com_cards.copy(), np.array([0, 0, 0]), raise_scale=a, risk_adjust=e))
+            self.prob_matrices = new_mat
+
         self.postflop_play()
         if self.hand_ct == 1:
+            self.round_in_play += 1
             return
 
         n_card = self.flop(1)
@@ -656,6 +664,7 @@ class GameEngine:
             self.prob_matrices[i].update_probs_ncard(n_card[0].copy())
         self.postflop_play()
         if self.hand_ct == 1:
+            self.round_in_play += 1
             return
 
         n_card_2 = self.flop(1)
@@ -663,6 +672,7 @@ class GameEngine:
             self.prob_matrices[i].update_probs_ncard(n_card_2[0].copy())
         self.postflop_play()
         if self.hand_ct == 1:
+            self.round_in_play += 1
             return
         print("status ", str(self.play_status))
 
