@@ -748,6 +748,8 @@ class GameEngine:
         print("EFFICIENCY OF BOT IS: ", self.efficiency)
         self.efficiency_list.append(self.efficiency)
         self.bot_PnL_list.append(final_bot_stack - initial_bot_stack)
+        print("Efficiency list currently is: ", self.efficiency_list)
+        print("PnL list currently is: ", self.bot_PnL_list)
 
 
 first_game = GameEngine(1000, 6, 5, 10)
@@ -761,6 +763,6 @@ first_game = GameEngine(1000, 6, 5, 10)
 # first_game.play()
 
 
-for i in range(5):
+for i in range(4):
     print("game, " ,str(i))
     first_game.play()
