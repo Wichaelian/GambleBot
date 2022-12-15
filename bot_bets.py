@@ -219,7 +219,7 @@ def decision_maker(dict_obj_list, my_cards, com_cards, curr_bet, pot, neighbors)
 
 class prob_dictionary:
 
-    def __init__(self, my_cards, known_cards, action_ct, raise_scale, risk_adjust):
+    def __init__(self, my_cards, known_cards, action_ct, raise_scale=1, risk_adjust=0):
 
         self.known_cards = known_cards
         deck = set()
@@ -305,7 +305,7 @@ class prob_dictionary:
                     1, self.raise_scale*(curr_bet/prev_bet) * (r_prob * hand_prob) / (self.prob_raise * 200))
                 self.hand_prob_dict[hand] = hand_prob_given_action
                 if hand_prob_given_action == 0:
-                    raise_prob_given_hand == r_prob
+                    raise_prob_given_hand = r_prob
                 else:
                     raise_prob_given_hand = (
                         hand_prob * r_prob) / hand_prob_given_action
@@ -334,7 +334,7 @@ class prob_dictionary:
                     c_prob * hand_prob) / (self.prob_call * 100)
                 self.hand_prob_dict[hand] = hand_prob_given_action
                 if hand_prob_given_action == 0:
-                    call_prob_given_hand == c_prob
+                    call_prob_given_hand = c_prob
                 else:
                     call_prob_given_hand = (
                         hand_prob * c_prob) / hand_prob_given_action
@@ -363,7 +363,7 @@ class prob_dictionary:
                     f_prob * hand_prob) / (self.prob_fold * 100)
                 self.hand_prob_dict[hand] = hand_prob_given_action
                 if hand_prob_given_action == 0:
-                    fold_prob_given_hand == f_prob
+                    fold_prob_given_hand = f_prob
                 else:
                     fold_prob_given_hand = (
                         hand_prob * f_prob) / hand_prob_given_action
@@ -395,7 +395,7 @@ class prob_dictionary:
 
     def update_probs_ncard(self, card):
         self.known_cards.append(card)
-        if len(self.known_cards == 7):
+        if len(self.known_cards) == 7:
             return
         prob_dictionary = self.prob_dict
         hand_prob_dict = self.hand_prob_dict

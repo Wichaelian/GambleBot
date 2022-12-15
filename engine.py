@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import typing as T
 from bot_bets import preflop_bet, calculate_bet, prob_dictionary, prob_dictionary, decision_maker
 from itertools import combinations
-import math
+from collections import defaultdict
 
 
 def classify(hand) -> int:
@@ -175,6 +175,7 @@ class GameEngine:
         self.play_status = [True for i in range(player_ct)]
         self.moveleft_status = [True for i in range(player_ct)]
         self.bot_status = self.play_status[0]
+        self.buy_in = init_stack
 
         self.dealer = random.randrange(player_ct)
 
@@ -183,7 +184,9 @@ class GameEngine:
         self.curr_bet = big
         self.pot = sm + big
 
-        prev_bet = self.big_blind
+        self.round_in_play = 0
+
+        self.prev_bet = self.big_blind
 
         self.player_stacks = [init_stack for i in range(player_ct)]
         self.bot_stack = self.player_stacks[0]
@@ -199,6 +202,9 @@ class GameEngine:
         self.seen = set()
 
         self.prob_matrices = []
+        self.action_statuses = {}
+        for i in range(self.player_ct):
+            self.action_statuses[i] = (1, 0)
 
         self.pf_range = {
             1: {'1_1o', '13_1s', '12_1s', '11_1s', '10_1s', '9_1s', '8_1s', '7_1s', '6_1s', '5_1s', '4_1s', '3_1s', '2_1s',
@@ -600,21 +606,47 @@ class GameEngine:
                 if res_max > max_score:
                     max_score = res_max
                     winner = i
+            else:
+                self.action_statuses[i] = self.prob_matrices[i].update_loser()
+
         self.player_stacks[winner] += self.pot
         print(scores)
         print("WINNER IS ", winner)
+        self.action_statuses[i] = self.prob_matrices[winner].update_winner()
+        self.round_in_play += 1
 
     def play(self) -> None:
         """
         Main gameplay loop.
         """
+        print("game 2 loop")
+        self.deal_hands()
+        print("game2 dealt")
+        if self.round_in_play >= 1:
+            self.hand_ct = 6
+            for i in range(self.player_ct):
+                if not self.play_status[i]:
+                    self.player_stacks[i] = self.buy_in
+                    self.pot += self.buy_in
+                    self.play_status[i] = True
+            self.prob_matrices = []
+            self.dealer = (self.dealer + 1) % self.player_ct
+            self.curr_bet = self.big_blind
+            self.prev_bet = self.big_blind
+
+        print("game 2 reset")
         self.preflop_play()
         if self.hand_ct == 1:
             return
 
         for i in range(self.player_ct):
-            self.prob_matrices.append(prob_dictionary(
-                self.player_cards[i].copy(), self.com_cards.copy()))
+            if self.round_in_play >= 1:
+                a, e = self.action_statuses[i]
+                self.prob_matrices.append(prob_dictionary(
+                    self.player_cards[i].copy(), self.com_cards.copy(), np.array([0, 0, 0]), raise_scale=a, risk_adjust=e))
+            else:
+                self.prob_matrices.append(prob_dictionary(
+                    self.player_cards[i].copy(), self.com_cards.copy(), np.array([0, 0, 0])))
         self.postflop_play()
         if self.hand_ct == 1:
             return
@@ -637,12 +669,12 @@ class GameEngine:
         self.game_end()
 
 
-first_game = GameEngine(25, 6, 0.25, 0.5)
-first_game.deal_hands()
-
+first_game = GameEngine(1000, 6, 5, 10)
 print(first_game.com_cards)
 print(first_game.player_stacks)
 print(first_game.player_cards)
 print(first_game.seen)
 print("dealer", str(first_game.dealer))
+first_game.play()
+print("*******************game 2*************")
 first_game.play()
