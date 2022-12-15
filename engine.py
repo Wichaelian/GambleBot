@@ -3,7 +3,7 @@ import pandas as pd
 import random
 import matplotlib.pyplot as plt
 import typing as T
-from bot_bets import preflop_bet, calculate_bet
+from bot_bets import preflop_bet, calculate_bet, prob_dictionary, prob_dictionary, decision_maker
 from itertools import combinations
 import math
 
@@ -183,6 +183,8 @@ class GameEngine:
         self.curr_bet = big
         self.pot = sm + big
 
+        prev_bet = self.big_blind
+
         self.player_stacks = [init_stack for i in range(player_ct)]
         self.bot_stack = self.player_stacks[0]
 
@@ -195,6 +197,8 @@ class GameEngine:
         self.bot_card = self.player_cards[0]
         self.com_cards = []
         self.seen = set()
+
+        self.prob_matrices = []
 
         self.pf_range = {
             1: {'1_1o', '13_1s', '12_1s', '11_1s', '10_1s', '9_1s', '8_1s', '7_1s', '6_1s', '5_1s', '4_1s', '3_1s', '2_1s',
@@ -228,7 +232,7 @@ class GameEngine:
         assert player in range(self.player_ct)
         pass
 
-    def bet(self, player: int, amt: float) -> None:
+    def bet(self, player: int, amt: float, postflop=False) -> None:
         """
         Bet a given amount for a given player. Update game state accordingly
 
@@ -239,12 +243,17 @@ class GameEngine:
         Precondition:
         player must have at least amt money in its stack
         """
-        assert self.player_stacks[player] >= amt
+        if self.player_stacks[player] < amt:
+            amt = self.player_stacks[player]
         self.player_stacks[player] -= amt
         self.pot += amt
         self.curr_bet = amt
+        if postflop:
+            self.prob_matrices[player].update_probs_action(
+                "Raise", amt, self.prev_amt)
+            self.prev_amt = amt
 
-    def call(self, player: int) -> None:
+    def call(self, player: int, postflop=False) -> None:
         """
         Given player calls, or bets current amount.
 
@@ -253,6 +262,10 @@ class GameEngine:
         """
         assert player in range(self.player_ct)
         self.bet(player, amt=self.curr_bet)
+        if postflop:
+            self.prob_matrices[player].update_probs_action(
+                "Call", self.curr_bet, self.prev_amt)
+            self.prev_amt = self.curr_bet
 
     def fold(self, player: int) -> None:
         """
@@ -400,16 +413,19 @@ class GameEngine:
             print("end_for")
 
             print("loop end")
+            self.prev_amt = self.curr_bet
             position += 1
 
-    def flop(self, x: int) -> None:
+    def flop(self, x: int) -> T.List[T.List]:
         """
         Deal x amount of communty cards and print them to the output
+        Return the new cards/card 
         """
         new_cards, self.seen = deal_x_cards(x, self.seen)
         print("new", str(new_cards))
         self.com_cards += new_cards
         print("Flop: ", str(self.com_cards))
+        return new_cards
 
     def check_if_no_moves_left(self, arr: T.List[T.List[bool]]) -> bool:
         """
@@ -497,12 +513,17 @@ class GameEngine:
             print("STILL IN PLAY ARRAY IS ", str(self.play_status))
             print("MOVE LEFT ARRAY IS ", str(self.moveleft_status))
 
-            print("dealer: ", str(self.dealer), "position: ", str(position))
-
             if position >= self.player_ct:
                 position = 0
+                print("BOT HAS HAND OF ", self.player_cards[0])
+
+            print("dealer: ", str(self.dealer), "position: ", str(position))
 
             print(self.play_status)
+
+            if self.player_stacks[position] == 0:
+                position += 1
+                continue
 
             if self.play_status[position] == False:
                 position += 1
@@ -511,25 +532,32 @@ class GameEngine:
             if self.moveleft_status[position] == False:
                 position += 1
                 continue
+            if position == 0:
+                if not bet_in_play:
+                    decision = decision_maker(
+                        self.prob_matrices, self.player_cards[0], self.com_cards, self.curr_bet/2, self.pot, 100)
+                else:
+                    decision = decision_maker(
+                        self.prob_matrices, self.player_cards[0], self.com_cards, self.curr_bet, self.pot, 100)
 
             rank = self.classify_player_best_hand(position)
             decision = self.profile_postflop_bet(rank, bet_in_play, position)
-            print(str(decision))
+            print("player ", str(position), " decision ", str(decision))
             if decision[0] == 'Bet':
                 bet_in_play = True
                 for i in range(self.player_ct):
                     if self.play_status[i]:
                         self.moveleft_status[i] = True
-                self.bet(position, decision[1])
+                self.bet(position, decision[1], postflop=True)
 
             elif decision[0] == 'Call':
-                self.bet(position, self.curr_bet)
+                self.call(position, postflop=True)
 
             elif decision[0] == 'Raise':
                 for i in range(self.player_ct):
                     if self.play_status[i]:
                         self.moveleft_status[i] = True
-                self.bet(position, decision[1])
+                self.bet(position, decision[1], postflop=True)
             else:
                 print("betinplay ", str(bet_in_play))
                 if bet_in_play == True:
@@ -572,6 +600,7 @@ class GameEngine:
                 if res_max > max_score:
                     max_score = res_max
                     winner = i
+        self.player_stacks[winner] += self.pot
         print(scores)
         print("WINNER IS ", winner)
 
@@ -579,24 +608,32 @@ class GameEngine:
         """
         Main gameplay loop.
         """
-        print(self.com_cards)
         self.preflop_play()
         if self.hand_ct == 1:
             return
-        print(self.play_status)
+
+        for i in range(self.player_ct):
+            self.prob_matrices.append(prob_dictionary(
+                self.player_cards[i].copy(), self.com_cards.copy()))
         self.postflop_play()
         if self.hand_ct == 1:
             return
-        print(self.play_status)
-        self.flop(1)
+
+        n_card = self.flop(1)
+        for i in range(self.player_ct):
+            self.prob_matrices[i].update_probs_ncard(n_card[0].copy())
         self.postflop_play()
         if self.hand_ct == 1:
             return
-        self.flop(1)
+
+        n_card_2 = self.flop(1)
+        for i in range(self.player_ct):
+            self.prob_matrices[i].update_probs_ncard(n_card_2[0].copy())
         self.postflop_play()
         if self.hand_ct == 1:
             return
         print("status ", str(self.play_status))
+
         self.game_end()
 
 
