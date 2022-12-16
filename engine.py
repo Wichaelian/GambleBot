@@ -747,7 +747,10 @@ class GameEngine:
 
         print("EFFICIENCY OF BOT IS: ", self.efficiency)
         self.efficiency_list.append(self.efficiency)
-        self.bot_PnL_list.append(final_bot_stack - initial_bot_stack)
+        PnL_sum = 0
+        for i in range(len(self.bot_PnL_list)):
+            PnL_sum += self.bot_PnL_list[i]
+        self.bot_PnL_list.append(PnL_sum + (final_bot_stack - initial_bot_stack))
         print("Efficiency list currently is: ", self.efficiency_list)
         print("PnL list currently is: ", self.bot_PnL_list)
 
@@ -762,7 +765,26 @@ first_game = GameEngine(1000, 6, 5, 10)
 # print("*******************game 2*************")
 # first_game.play()
 
+num_games = 10
 
-for i in range(4):
-    print("game, " ,str(i))
+for i in range(num_games):
+    print("COMMENCING GAME " ,str(i))
     first_game.play()
+
+xPoints = []
+for i in range(len(first_game.efficiency_list)):
+    xPoints.append(i)
+
+plt.subplot(1, 2, 1)
+plt.plot(xPoints, first_game.efficiency_list)
+plt.title("Efficiency Over Games") 
+plt.xlabel('Games')
+plt.ylabel('Efficiency')
+
+plt.subplot(1, 2, 2)
+plt.plot(xPoints, first_game.bot_PnL_list)
+plt.title("Cumulative PnL Over Games") 
+plt.xlabel('Games')
+plt.ylabel('PnL')
+
+plt.show()
